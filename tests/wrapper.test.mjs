@@ -1,9 +1,14 @@
+import os from 'node:os';
+import fs from 'node:fs';
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
+// Test runs must never write job state into the real home directory.
+process.env.AGY_STATE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-state-'));
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const wrapperPath = path.resolve(__dirname, '../bin/agy-wrapper.mjs');
@@ -26,7 +31,7 @@ describe('Antigravity CC Wrapper Functional Tests', () => {
 
   test('should report backend status with status command', () => {
     const output = execSync(`node "${wrapperPath}" status`, { encoding: 'utf-8' });
-    assert.match(output, /ESTADO DE INTEGRACI/);
+    assert.match(output, /Antigravity · estado/);
     assert.match(output, /Plataforma/);
     assert.match(output, /Node\.js/);
   });

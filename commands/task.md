@@ -1,6 +1,6 @@
 ---
 description: Pipeline dual-agent completo - Claude especifica, Antigravity codifica en disco, Claude audita y corrige
-argument-hint: <requerimiento>
+argument-hint: '[--background] [--model <m>] [--effort <nivel>] <requerimiento>'
 allowed-tools: Bash(node:*), Bash(git status:*), Bash(git diff:*)
 ---
 
@@ -19,6 +19,9 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" task <<'AGY_EOF'
 <especificación técnica completa>
 AGY_EOF
 ```
+
+Si el usuario pasó `--model`, `--effort` o `--background`, escríbelos en la primera línea del heredoc, antes de la especificación. Con `--background`, informa el ID y retoma la Fase 3 cuando el usuario lo pida (después de `/antigravity:result`).
+Para una segunda vuelta sobre lo mismo (por ejemplo, corregir lo que falló), usa `delegate --resume` con solo la instrucción nueva.
 
 ## Fase 3 - Auditoría (tú, Claude)
 1. Ejecuta `git status` y `git diff` para ver los cambios reales en disco; no confíes solo en el resumen de Antigravity.

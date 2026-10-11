@@ -1,6 +1,6 @@
 {
   "name": "antigravity-cc",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Orchestrates Google Antigravity CLI (agy) and Codex as sub-agents within Claude Code for dual-agent collaboration",
   "type": "module",
   "main": "./bin/agy-wrapper.mjs",
@@ -10,9 +10,11 @@
   },
   "scripts": {
     "start": "node bin/agy-wrapper.mjs",
-    "test": "node --test tests/wrapper.test.mjs tests/backend.test.mjs tests/security-audit.test.mjs",
+    "test": "node --test tests/*.test.mjs",
     "test:security": "node tests/security-audit.test.mjs",
-    "check-security": "node tests/security-audit.test.mjs"
+    "check-security": "node tests/security-audit.test.mjs",
+    "bump-version": "node scripts/bump-version.mjs",
+    "check-version": "node scripts/bump-version.mjs --check"
   },
   "keywords": [
     "claude-code",
