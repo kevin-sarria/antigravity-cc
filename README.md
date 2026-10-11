@@ -2,194 +2,356 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node: >=18](https://img.shields.io/badge/Node-%3E%3D18-green.svg)](https://nodejs.org/)
-[![Multi-Agent](https://img.shields.io/badge/Architecture-Dual--Agent%20Pairing-blue.svg)](#arquitectura)
+[![Multi-Agent](https://img.shields.io/badge/Architecture-Dual--Agent%20Pairing-blue.svg)](#architecture)
+[![Dependencies](https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Node)-success.svg)](package.json)
+[![Security: Audited](https://img.shields.io/badge/Security-Credential%20Clean-brightgreen.svg)](#security--privacy)
 
-Orquestación multi-agente para conectar **Claude Code** con **Google Antigravity CLI (`agy`)** y **Codex** como sub-agentes ejecutores. Diseñado para trabajar en un conjunto armonioso donde Claude Code actúa como orquestador de alto nivel y Antigravity/Gemini o Codex ejecutan revisiones cruzadas independientes, scaffolding masivo y contrastes de arquitectura sin saturar la ventana de contexto.
+> **Harmonious multi-agent pairing:** Connect **Claude Code** with **Google Antigravity CLI (`agy`)**, **Gemini**, and **Codex** as deep execution sub-agents.
+
+Claude Code leads project direction, interactive architecture decisions, and high-level reasoning. Meanwhile, Antigravity acts as a dedicated worker sub-agent executing independent code reviews, massive scaffolding, and adversarial stress-testing directly against your local filesystem—**shielding Claude's context window from token exhaustion**.
 
 ---
 
-## 1. Visión y Arquitectura
+## Table of Contents
 
-* **Host / Orquestador (Claude Code):** Mantiene el razonamiento de alto nivel, la toma de decisiones arquitectónicas y la dirección general de la sesión interactiva.
-* **Worker / Sub-agente (Antigravity CLI / Gemini / Codex):** Ejecuta tareas pesadas con acceso directo a archivos locales, inspección de diffs, scaffolding y auditorías de seguridad.
-* **Context Shielding:** Claude delega la tarea pesada al sub-agente en sub-procesos aislados; el sub-agente procesa el sistema de archivos y devuelve un *digest* conciso, protegiendo la ventana de contexto de Claude de saturarse con miles de líneas repetitivas.
+- [Why agy-cc?](#why-agy-cc)
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+  - [Install as Claude Code Plugin](#1-install-as-claude-code-plugin)
+  - [Run as Standalone CLI](#2-run-as-standalone-cli)
+- [Command Reference](#command-reference)
+  - [1. `/antigravity:review`](#1-antigravityreview)
+  - [2. `/antigravity:delegate <task>`](#2-antigravitydelegatetask)
+  - [3. `/antigravity:challenge <hypothesis>`](#3-antigravitychallengehypothesis)
+  - [4. `/antigravity:status`](#4-antigravitystatus)
+  - [5. `/antigravity:test`](#5-antigravitytest)
+- [Engine & Model Configuration](#engine--model-configuration)
+- [Platform Specific Notes](#platform-specific-notes)
+- [Security & Privacy Guarantee](#security--privacy-guarantee)
+- [Testing & Quality Assurance](#testing--quality-assurance)
+- [Repository Structure](#repository-structure)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Why agy-cc?
+
+Pairing two frontier AI models in a single development session creates a balanced, self-correcting workflow:
+
+1. **Context Shielding:** Claude's context window remains lean. Delegated tasks (generating 30 DTOs, hundreds of test cases, boilerplate migrations) run in an isolated worker process. Claude only receives a structured executive digest.
+2. **Unbiased Cross-Model Audits:** Claude writes code, and Gemini/Antigravity audits the local git diff with zero confirmation bias, catching edge cases, race conditions, and OWASP vulnerabilities.
+3. **Adversarial Architecture Critique:** Before committing to a risky design choice or library, submit your proposal to an independent skeptical AI architect for stress-testing.
+4. **Universal Backend Support:** Works out of the box with Google Antigravity (`agy`), Google Gemini CLI (`@google/gemini-cli`), and OpenAI Codex (`codex`).
+5. **Zero External Dependencies:** Built entirely with Node.js standard libraries (`node:child_process`, `node:process`, `node:test`). No supply-chain bloat or vulnerable third-party dependencies.
+
+---
+
+## Architecture
 
 ```
 +-------------------------------------------------------------+
 |                        CLAUDE CODE                          |
-|  - Dirección de proyecto                                    |
-|  - Sesión interactiva                                       |
+|  - High-level orchestrator & interactive session director   |
+|  - Architectural design & project coordination              |
 +-------------------------------------------------------------+
                                |
         /antigravity:review    |    /antigravity:delegate
+        /antigravity:challenge |
                                v
 +-------------------------------------------------------------+
 |                     ANTIGRAVITY-CC                          |
-|  Wrapper en Node.js (bin/agy-wrapper.mjs)                  |
+|  - CLI Bridge & Sanitizer (bin/agy-wrapper.mjs)             |
+|  - Multi-engine resolution (agy / gemini / codex)           |
+|  - Windows/POSIX safe Stdin pipe (no cmd buffer limits)     |
 +-------------------------------------------------------------+
                                |
-                      spawn('agy -p ...') / stdin
+                  spawn(engine, args) via Stdin
                                v
 +-------------------------------------------------------------+
 |             ANTIGRAVITY CLI / GEMINI / CODEX                |
-|  - Inspección de Git Diff                                   |
-|  - Creación de Tests / Mocks / Scaffolding                  |
-|  - Generación de informe condensado                         |
+|  - Local Git Diff inspection                                |
+|  - Scaffolding / Test suite generation                      |
+|  - Generates concise executive summary (Digest)             |
 +-------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Requisitos Previos
+## Prerequisites
 
-1. **Node.js >= 18.0.0** instalado.
-2. **Claude Code** instalado globalmente (`claude`).
-3. **Google Antigravity CLI** (`agy`) o **Gemini CLI** (`npm install -g @google/gemini-cli`) accesible en tu `$PATH`.
-   *(Opcionalmente Codex CLI si utilizas el motor alternativo `codex`).*
-4. **Git** configurado en el repositorio de trabajo.
+Before using `antigravity-cc`, ensure you have:
+
+- **Node.js >= 18.0.0** (`node --version`)
+- **Claude Code** installed (`npm install -g @anthropic-ai/claude-code`)
+- **Git** installed and initialized in your workspace (`git --version`)
+- At least **one supported backend engine**:
+  - **Google Antigravity CLI (`agy`)**: Official Antigravity binary in `$PATH`.
+  - **Google Gemini CLI (`gemini`)**: Global npm package (`npm install -g @google/gemini-cli`).
+  - **OpenAI Codex CLI (`codex`)**: If using the optional Codex engine.
 
 ---
 
-## 3. Instalación
+## Quick Start
 
-### Opción A: Registrar como Plugin en Claude Code
+### 1. Install as Claude Code Plugin
 
-1. Ubica o clona este proyecto en tu máquina:
-   ```bash
-   cd ~/proyectos/antigravity-cc
-   npm install
-   ```
+Clone or download this repository to your preferred tools or plugins directory:
 
-2. Registra el marketplace local en Claude Code:
-   ```text
-   /plugin marketplace add /ruta/absoluta/a/antigravity-cc
-   ```
-   *(En Windows: `/plugin marketplace add C:\Users\tu-usuario\Documents\proyectos\antigravity-cc`)*
-
-3. Instala el plugin:
-   ```text
-   /plugin install antigravity@local
-   /reload-plugins
-   ```
-
-### Opción B: Uso directo como CLI / Wrapper
-
-Puedes invocar el wrapper directamente desde cualquier terminal:
 ```bash
+# Clone the repository
+git clone https://github.com/your-username/antigravity-cc.git ~/plugins/antigravity-cc
+cd ~/plugins/antigravity-cc
+
+# Verify health and zero credentials
+npm test
+```
+
+Next, open **Claude Code** in your terminal and register the plugin:
+
+```text
+# 1. Register local marketplace source
+/plugin marketplace add ~/plugins/antigravity-cc
+
+# (On Windows, use your absolute path, e.g.:)
+# /plugin marketplace add C:\Users\<username>\Documents\proyectos\antigravity-cc
+
+# 2. Install the plugin
+/plugin install antigravity@local
+
+# 3. Reload active plugins
+/reload-plugins
+```
+
+### 2. Run as Standalone CLI
+
+You can also run commands directly from any terminal without Claude Code:
+
+```bash
+# Check connectivity and detected backend engine
 node bin/agy-wrapper.mjs status
+
+# Run connectivity test
 node bin/agy-wrapper.mjs test
+
+# Request code review
+node bin/agy-wrapper.mjs review
 ```
 
 ---
 
-## 4. Comandos Disponibles
+## Command Reference
 
-Una vez instalado en Claude Code, dispones de los siguientes comandos slash:
+| Command | Description | Engine |
+| :--- | :--- | :--- |
+| `/antigravity:review` | Performs an independent audit on local uncommitted git diffs. | Gemini / Antigravity / Codex |
+| `/antigravity:delegate <task>` | Offloads repetitive scaffolding, test generation, or refactoring. | Gemini / Antigravity / Codex |
+| `/antigravity:challenge <idea>` | Evaluates technical solutions against edge cases and scalability bottlenecks. | Gemini / Antigravity / Codex |
+| `/antigravity:status` | Displays active engine status, executable binary, and runtime diagnostic info. | System |
+| `/antigravity:test` | Executes a ping smoke test verifying live end-to-end connectivity. | Backend |
 
-| Comando | Descripción |
-| :--- | :--- |
-| `/antigravity:review` | Ejecuta una revisión cruzada e independiente del `git diff` local con Gemini/Antigravity antes de realizar commit o merge. |
-| `/antigravity:delegate <tarea>` | Delega una tarea intensiva de scaffolding, generación de pruebas unitarias o refactor y devuelve un digest a Claude. |
-| `/antigravity:challenge <hipótesis>` | Realiza un contraste técnico adversarial buscando fallos de escalabilidad, cuellos de botella y edge cases. |
-| `/antigravity:status` | Muestra el estado del motor detectado (`agy`, `gemini` o `codex`) y la plataforma. |
-| `/antigravity:test` | Ejecuta un ping de conectividad con el CLI del sub-agente. |
+---
 
-### Ejemplos Prácticos
+### 1. `/antigravity:review`
 
-#### 1. Revisión Dual de Código
+Audits your local changes (`git diff HEAD`, staged changes, or untracked modifications) before committing.
+
 ```text
 /antigravity:review
 ```
-El sub-agente analiza el git diff y reporta:
-- Riesgos de inyección / vulnerabilidades OWASP.
-- Bugs de concurrencia y null pointers.
-- Cuellos de botella de rendimiento.
-- Veredicto final: `APROBADO` o `REQUIERE ATENCIÓN`.
 
-#### 2. Scaffolding y Generación de Tests sin Saturar Contexto
+**Output structure:**
+- **Security & Injection Risks:** OWASP Top 10, input sanitation, missing authorization checks.
+- **Logic, Bugs & Concurrency:** Race conditions, unhandled null pointers, memory leaks.
+- **Performance & Best Practices:** N+1 queries, synchronous blocking operations, indexing.
+- **Verdict:** Explicit `APPROVED` or `NEEDS ATTENTION` summary.
+
+---
+
+### 2. `/antigravity:delegate <task>`
+
+Instructs the sub-agent to execute heavy local modifications without eating up Claude's token window.
+
 ```text
-/antigravity:delegate Escribir suite de pruebas unitarias con Vitest para src/services/auth.ts
+/antigravity:delegate Create unit test suite using Vitest for src/auth/tokenValidator.ts
 ```
 
-#### 3. Auditoría Adversarial de Arquitectura
+**Returned Digest:**
+- Files created / modified
+- Summary of changes implemented
+- Test execution output
+- Pending warnings or manual follow-ups
+
+---
+
+### 3. `/antigravity:challenge <hypothesis>`
+
+Acts as a skeptical senior software architect, stress-testing decisions and spotting architectural blind spots.
+
 ```text
-/antigravity:challenge ¿Es viable usar SQLite con WAL mode para soportar 100 workers concurrentes en Node.js?
+/antigravity:challenge Is SQLite in WAL mode suitable for handling 100 concurrent writer workers in Node.js?
+```
+
+**Critique report includes:**
+- Unforeseen failure conditions & edge cases
+- Hardware, I/O, network, or concurrency bottlenecks
+- Superior architectural alternatives with trade-offs
+- Pragmatic bottom-line recommendation
+
+---
+
+### 4. `/antigravity:status`
+
+Quickly inspect your runtime configuration:
+
+```text
+/antigravity:status
+```
+
+```text
+======================================================
+  ESTADO DE INTEGRACIÓN ANTIGRAVITY-CC (v1.0.0)
+======================================================
+✔ Binario en uso : agy
+✔ Tipo de motor  : antigravity
+✔ Plataforma     : win32 (x64)
+✔ Node.js        : v22.14.0
+======================================================
 ```
 
 ---
 
-## 5. Configuración de Motores (Antigravity / Gemini / Codex)
+### 5. `/antigravity:test`
 
-Por defecto, el wrapper detecta automáticamente el binario disponible en el siguiente orden de prioridad:
+Validates that your CLI backend is connected, authenticated, and answering prompts in headless mode.
 
-1. Variable de entorno `AGY_BIN` (si está definida).
-2. Binario global `agy` en el PATH.
-3. Binario global `gemini` en el PATH (con `--skip-trust` automático).
-4. Binario global `codex` en el PATH (si el motor Codex está activo).
+```text
+/antigravity:test
+```
 
-### Variables de Entorno Opcionales (`.env`):
+---
+
+## Engine & Model Configuration
+
+`antigravity-cc` auto-detects your backend environment with the following priority order:
+
+1. `AGY_BIN` environment variable (if explicitly set)
+2. `agy` binary in `$PATH`
+3. `gemini` CLI binary in `$PATH` (with automatic headless workspace trust)
+4. `codex` binary in `$PATH` (when Codex engine is selected)
+
+### Custom Configuration (`.env`)
+
+You can create a `.env` file based on `.env.example`:
 
 ```bash
-# Ruta personalizada al binario ejecutable
+# Custom path to executable binary
 AGY_BIN=/usr/local/bin/agy
 
-# Selección explícita del motor ('antigravity' o 'codex')
+# Select engine: 'antigravity' (default) or 'codex'
 AGY_ENGINE=antigravity
 
-# Ruta al binario de Codex si se usa dicho motor
+# Select specific model (e.g. gemini-2.5-pro, gemini-2.5-flash)
+AGY_MODEL=gemini-2.5-pro
+
+# Path to Codex binary if using Codex engine
 CODEX_BIN=codex
 ```
 
+### CLI Override Flags
+
+You can also override settings dynamically per command:
+
+```bash
+node bin/agy-wrapper.mjs challenge "Should we migrate to Kafka?" --engine codex
+```
+
 ---
 
-## 6. Pruebas y Auditoría de Seguridad
+## Platform Specific Notes
 
-Este repositorio incluye una suite automatizada de pruebas sin dependencias externas:
+### Windows
+- **Command-line safety:** Uses a dedicated direct Stdin streaming pipe to bypass Windows `cmd.exe` 8,191-character command line buffer limits. Diff files of arbitrary size are safely piped.
+- **NPM Shims:** If you have `@google/gemini-cli` installed, you can create `agy.cmd` and `agy.ps1` shims in `%APPDATA%\npm\` to allow invoking `agy` directly from PowerShell and CMD.
 
-### Ejecutar Pruebas Funcionales y de Seguridad
+### macOS & Linux
+Ensure executable permissions on the wrapper:
+```bash
+chmod +x bin/agy-wrapper.mjs
+```
+
+---
+
+## Security & Privacy Guarantee
+
+This project is built from the ground up for safe publication to public open-source repositories:
+
+- **Zero Hardcoded Secrets:** No API keys, personal bearer tokens, passwords, or machine-specific usernames are stored in this codebase.
+- **Airtight `.gitignore`:** Pre-configured to block `.env`, `.env.*`, OAuth credential dumps, SSL certificates (`.pem`, `.key`), `.claude.json`, logs, and session snapshots.
+- **In-flight Sanitization:** The wrapper includes defense-in-depth regex masks that redact detected API key formats (`AIza...`, `sk-ant-...`, `sk-...`, `ghp_...`, Bearer tokens) before outputting logs or handling errors.
+- **Local Execution:** Prompts run directly on your machine through your local CLI authentication.
+
+---
+
+## Testing & Quality Assurance
+
+`antigravity-cc` includes a zero-dependency automated test suite leveraging Node's native `node:test` runner.
+
+### Run All Tests
 ```bash
 npm test
 ```
 
-### Auditoría Específica de Credenciales
+### Run Dedicated Security Audit
 ```bash
 npm run check-security
 ```
 
-La auditoría verifica que:
-- **Cero Credenciales Expuestas:** Escaneo recursivo contra patrones de API keys (Google, OpenAI, Anthropic, GitHub, AWS, JWTs, llaves privadas).
-- **`.gitignore` Hermético:** Excluye `.env`, `.env.*`, credenciales OAuth, llaves `.pem`/`.key`, `.claude.json`, logs y directorios de sesión.
-- **`.env.example` Seguro:** Contiene únicamente placeholders explicativos.
-- **No Rutas Absolutas Personales:** No se filtran rutas privadas ni nombres de usuario del sistema local.
+The security audit recursively scans every file in the project against known secret signatures (Google, Anthropic, OpenAI, GitHub, AWS, JWTs, Private Keys) and validates that `.gitignore` and `.env.example` adhere strictly to privacy guidelines.
 
 ---
 
-## 7. Estructura del Repositorio
+## Repository Structure
 
 ```text
 antigravity-cc/
 ├── .claude-plugin/
-│   └── plugin.json             # Manifiesto del plugin para Claude Code
+│   └── plugin.json             # Claude Code slash commands manifest
 ├── .codex-plugin/
-│   └── plugin.json             # Manifiesto para interoperabilidad con Codex
+│   └── plugin.json             # Manifest for Codex interoperability
 ├── bin/
-│   └── agy-wrapper.mjs         # Orquestador y puente CLI principal
+│   └── agy-wrapper.mjs         # Multi-engine CLI bridge & orchestrator
 ├── skills/
-│   ├── antigravity-review/     # Skill: Revisión cruzada de código
-│   ├── antigravity-delegate/   # Skill: Delegación de tareas y scaffolding
-│   └── antigravity-challenge/  # Skill: Crítica y contraste arquitectónico
+│   ├── antigravity-review/     # Dual-agent code review skill
+│   ├── antigravity-delegate/   # Deep task & scaffolding delegation skill
+│   └── antigravity-challenge/  # Adversarial architecture review skill
 ├── tests/
-│   ├── wrapper.test.mjs        # Pruebas funcionales de comandos y CLI
-│   └── security-audit.test.mjs # Auditoría automatizada de credenciales y privacidad
-├── .env.example                # Plantilla de variables de entorno (sin secretos)
-├── .gitignore                  # Reglas estrictas para evitar fugas de información
-├── LICENSE                     # Licencia MIT
-├── package.json                # Configuración de paquete y scripts de test
-└── README.md                   # Documentación completa y guía de uso
+│   ├── wrapper.test.mjs        # Functional CLI and command tests
+│   └── security-audit.test.mjs # Automated credential & secret exposure scanner
+├── .env.example                # Safe environment template (placeholders only)
+├── .gitignore                  # Airtight exclusion rules for git
+├── CONTRIBUTING.md             # Guidelines for open-source contributors
+├── LICENSE                     # MIT Open Source License
+├── package.json                # Zero-dependency configuration & test scripts
+└── README.md                   # Complete documentation
 ```
 
 ---
 
-## 8. Licencia
+## Contributing
 
-Distribuido bajo la licencia [MIT](LICENSE). Código abierto, seguro y listo para su publicación.
+Contributions are welcome! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on code style, testing, and pull requests.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Verify tests and security audit pass (`npm test`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+---
+
+## License
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
