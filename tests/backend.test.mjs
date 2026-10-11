@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -14,6 +15,9 @@ import {
   diagnoseError,
   cleanOutput,
 } from '../bin/agy-wrapper.mjs';
+
+// Test runs must never write job state into the real home directory.
+process.env.AGY_STATE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-state-'));
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const wrapperPath = path.resolve(__dirname, '../bin/agy-wrapper.mjs');

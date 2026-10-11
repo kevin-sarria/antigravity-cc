@@ -11,6 +11,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-11
+
+### Added
+- **Structured reviews.** `review` now returns a verdict and findings with severity, `file:line`,
+  confidence and a recommendation, enforced with `agy --json-schema`
+  (`schemas/review-output.schema.json`) and rendered ordered from critical to low.
+- **`/antigravity:adversarial-review`**: a review that tries to break the change and questions
+  the design (auth, data loss, races, rollback, migrations).
+- **Review targets**: `--base <branch>` reviews the current branch against a branch, and
+  `--scope auto|working-tree|branch` picks what to review. Working-tree reviews now include the
+  content of new untracked files.
+- **Background jobs**: `--background` on review, adversarial-review, challenge, delegate and task,
+  plus `/antigravity:status`, `/antigravity:result` and `/antigravity:cancel`. Every run is recorded
+  per repository in `~/.antigravity-cc/state/` (`AGY_STATE_DIR`). Background runs are not bound by
+  Claude Code's 10-minute Bash limit (`AGY_BACKGROUND_TIMEOUT_MS`, default 30 min). Crashed workers
+  are detected, and cancel kills the worker and `agy`.
+- **`--resume` / `--conversation <id>`** continue an earlier `agy` conversation for delegate, task
+  and challenge.
+- **`--model` and `--effort`** per run.
+- **`/antigravity:setup`**: checks Node, git, Antigravity CLI and the session, and offers to
+  install `agy` when it is missing.
+- **`antigravity-rescue` subagent**: Claude can hand it substantial tasks on its own initiative.
+- **`antigravity-result-handling` skill**: findings are shown verbatim, and Claude asks before
+  fixing anything after a review.
+- **Release tooling**: `npm run bump-version` and `npm run check-version`, plus a GitHub Actions CI
+  that runs the tests on Windows, macOS and Linux and validates the plugin manifests.
+
+### Changed
+- `/antigravity:status` now lists the repository's jobs. Backend diagnostics moved to
+  `/antigravity:setup`.
+- The wrapper is split into modules under `lib/`. Every git call runs without a shell.
+- Review and delegate commands accept their options inside the text (e.g. `--base main revisa la auth`).
+
+### Fixed
+- Background runs and probes no longer open console windows on Windows (`windowsHide`).
+
 ## [1.3.0] - 2026-10-11
 
 ### Added
@@ -58,7 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: `/antigravity:task`, `review`, `delegate`, `challenge`, `status` and `test`
   commands, matching skills, Claude Code marketplace manifest and security audit tests.
 
-[Unreleased]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.0.0...v1.2.0
 [1.0.0]: https://github.com/kevin-sarria/antigravity-cc/releases/tag/v1.0.0

@@ -1,10 +1,26 @@
 ---
-description: Revisión independiente (solo lectura) del git diff local usando Antigravity
-argument-hint: [foco opcional, ej. "seguridad del login"]
-allowed-tools: Bash(node:*)
+description: Revisión estructurada (solo lectura) de tus cambios locales o de tu rama, hecha por Antigravity
+argument-hint: '[--background|--wait] [--base <rama>] [--scope auto|working-tree|branch] [--model <m>] [--effort <nivel>] [foco]'
+disable-model-invocation: true
+allowed-tools: Bash(node:*), Bash(git status:*), Bash(git diff:*), AskUserQuestion
 ---
 
-Ejecuta este comando con la herramienta Bash usando `timeout: 600000` (Antigravity puede tardar varios minutos). Copia el heredoc tal cual: el texto viaja por stdin y el shell no lo interpreta.
+Ejecuta una revisión de código con Antigravity (solo lectura). Revisa los cambios sin confirmar; si no hay, revisa la rama actual contra la rama principal. `--base <rama>` fuerza la comparación de rama.
+
+Argumentos del usuario: `$ARGUMENTS`
+
+Reglas:
+- Es solo una revisión. No corrijas nada ni anuncies que vas a cambiar código.
+- Muestra la salida del wrapper tal cual: veredicto, hallazgos ordenados por gravedad con `archivo:línea`, próximos pasos y la línea final "🛰️ Respondido por Antigravity CLI". No la resumas ni la reescribas.
+- Después de mostrarla, DETENTE y pregunta qué hallazgos quiere corregir el usuario. Nunca apliques arreglos por tu cuenta, aunque sean obvios.
+
+Primer o segundo plano:
+- Si los argumentos incluyen `--background` o `--wait`, respétalo sin preguntar.
+- Si no, estima el tamaño: `git status --short --untracked-files=all` y `git diff --shortstat` (con `--base <rama>`: `git diff --shortstat <rama>...HEAD`).
+  - Si son 1 o 2 archivos pequeños, ejecuta en primer plano sin preguntar.
+  - Si no, usa AskUserQuestion una sola vez con "Ejecutar en segundo plano (Recomendado)" y "Esperar el resultado". Si elige segundo plano, escribe `--background` al inicio del heredoc.
+
+Ejecuta con la herramienta Bash usando `timeout: 600000`. Copia los argumentos dentro del heredoc sin cambios (las comillas en `'AGY_EOF'` evitan que el shell los interprete):
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" review <<'AGY_EOF'
@@ -12,6 +28,4 @@ $ARGUMENTS
 AGY_EOF
 ```
 
-Muestra al usuario la salida resumida y señala los hallazgos importantes de seguridad y concurrencia. Verifica contra el código los hallazgos que vayas a destacar antes de presentarlos como ciertos. Si el comando falla, muestra el diagnóstico que imprime el wrapper.
-
-Copia siempre al usuario, sin cambios, la línea final que empieza con "🛰️ Respondido por Antigravity CLI": es la prueba de que la respuesta vino de agy (el ID de conversación se puede verificar en ~/.gemini/antigravity-cli/conversations/).
+En segundo plano, el wrapper responde enseguida con un ID: díselo al usuario junto con `/antigravity:status` y `/antigravity:result`, y no esperes el resultado.

@@ -26,12 +26,12 @@ Claude Code leads project direction, interactive architecture decisions, and hig
   - [1. Install as Claude Code Plugin](#1-install-as-claude-code-plugin)
   - [2. Run as Standalone CLI](#2-run-as-standalone-cli)
 - [Command Reference](#command-reference)
-  - [1. `/antigravity:task <prompt>`](#1-antigravitytask-prompt)
-  - [2. `/antigravity:review`](#2-antigravityreview)
-  - [3. `/antigravity:delegate <task>`](#3-antigravitydelegatetask)
-  - [4. `/antigravity:challenge <hypothesis>`](#4-antigravitychallengehypothesis)
-  - [5. `/antigravity:status`](#5-antigravitystatus)
-  - [6. `/antigravity:test`](#6-antigravitytest)
+  - [Options](#options)
+  - [Reviews](#reviews)
+  - [Background jobs](#background-jobs)
+  - [Continuing a conversation](#continuing-a-conversation)
+  - [`/antigravity:task <requirement>`](#antigravitytask-requirement)
+  - [Typical flows](#typical-flows)
 - [Dual-Agent Round-Trip Workflow](#dual-agent-round-trip-workflow-the-ping-pong-pattern)
 - [Engine & Model Configuration](#engine--model-configuration)
 - [Troubleshooting & Diagnostics](#troubleshooting--diagnostics)
@@ -129,170 +129,174 @@ By default the wrapper removes `GEMINI_API_KEY` / `GOOGLE_API_KEY` from the sub-
 
 ### 1. Install as Claude Code Plugin
 
-Clone or download this repository to your preferred tools or plugins directory:
+In Claude Code:
+
+```text
+/plugin marketplace add kevin-sarria/antigravity-cc
+/plugin install antigravity@antigravity-marketplace
+/reload-plugins
+/antigravity:setup
+```
+
+`/antigravity:setup` tells you whether Antigravity CLI is installed and signed in, and offers to install it if it is missing.
+
+To work on the plugin itself, clone it and register the local folder instead:
 
 ```bash
-# Clone the repository
-git clone https://github.com/kevin-sarria/antigravity-cc.git ~/plugins/antigravity-cc
-cd ~/plugins/antigravity-cc
-
-# Verify health and zero credentials
+git clone https://github.com/kevin-sarria/antigravity-cc.git
+cd antigravity-cc
 npm test
 ```
 
-Next, open **Claude Code** in your terminal and register the plugin:
-
 ```text
-# 1. Register local marketplace source
-/plugin marketplace add ~/plugins/antigravity-cc
-
-# (On Windows, use your absolute path, e.g.:)
-# /plugin marketplace add C:\Users\<username>\Documents\proyectos\antigravity-cc
-
-# 2. Install the plugin from the marketplace
+/plugin marketplace add C:Users<username>path	oantigravity-cc
 /plugin install antigravity@antigravity-marketplace
-# (or simply: /plugin install antigravity)
-
-# 3. Reload active plugins
-/reload-plugins
 ```
 
 ### 2. Run as Standalone CLI
 
-You can also run commands directly from any terminal without Claude Code:
+Every command also works from a normal terminal, inside the repository you want to work on:
 
 ```bash
-# Check connectivity and detected backend engine
-node bin/agy-wrapper.mjs status
-
-# Run connectivity test
-node bin/agy-wrapper.mjs test
-
-# Request code review
-node bin/agy-wrapper.mjs review
+node /path/to/antigravity-cc/bin/agy-wrapper.mjs setup
+node /path/to/antigravity-cc/bin/agy-wrapper.mjs review --base main
+echo "--background revisa la auth" | node /path/to/antigravity-cc/bin/agy-wrapper.mjs adversarial-review
+node /path/to/antigravity-cc/bin/agy-wrapper.mjs status
+node /path/to/antigravity-cc/bin/agy-wrapper.mjs --help
 ```
 
 ---
 
 ## Command Reference
 
-| Command | Description | Sub-agent permissions |
+| Command | What it does | Sub-agent permissions |
 | :--- | :--- | :--- |
-| `/antigravity:task <prompt>` | Autonomous round-trip pipeline: Claude plans $\rightarrow$ Antigravity builds on disk $\rightarrow$ Claude audits & fixes. | Read + edit files |
-| `/antigravity:review [focus]` | Performs an independent audit on local uncommitted changes (diff + untracked files). | Read-only |
-| `/antigravity:delegate <task>` | Offloads repetitive scaffolding, test generation, or refactoring. | Read + edit files |
-| `/antigravity:challenge <idea>` | Evaluates technical solutions against edge cases and scalability bottlenecks. | Read-only |
-| `/antigravity:login` | Opens a console window running `agy` so you can sign in with your Google AI Pro account. | — |
-| `/antigravity:status` | Displays active engine, CLI version, binary path, permissions and timeout. | — |
-| `/antigravity:test` | Executes a smoke test verifying live end-to-end connectivity and auth. | Read-only |
+| `/antigravity:setup` | Checks Node, git, Antigravity CLI and your session; offers to install `agy` if it is missing. | — |
+| `/antigravity:review` | Structured review of your uncommitted changes or your branch: verdict, findings by severity with `file:line`. | Read-only |
+| `/antigravity:adversarial-review` | Review that tries to **break** the change and questions the design (auth, data loss, races, rollback). | Read-only |
+| `/antigravity:challenge <idea>` | Skeptical architecture critique of a proposal or decision. | Read-only |
+| `/antigravity:delegate <task>` | Hands a task to Antigravity, which edits files on disk and returns a digest. | Read + edit files |
+| `/antigravity:task <requirement>` | Full pipeline: Claude writes the spec, Antigravity builds it, Claude audits and fixes. | Read + edit files |
+| `/antigravity:status [id]` | Running and recent jobs for this repository, or the details of one job. | — |
+| `/antigravity:result [id]` | Stored output of a finished job (the latest one by default). | — |
+| `/antigravity:cancel [id]` | Stops a running job. | — |
+| `/antigravity:login` | Opens a console window running `agy` so you can sign in. | — |
+| `/antigravity:test` | Quick connectivity smoke test. | Read-only |
+
+There is also an **`antigravity-rescue` subagent** (see `/agents`). Claude can hand it a substantial task on its own initiative, for example when it is stuck on a bug or wants an independent second pass. You can also ask for it directly: *"pídele a Antigravity que investigue por qué fallan los tests"*.
+
+### Options
+
+Write options before the text; they work in any order:
+
+| Option | Applies to | Effect |
+| :--- | :--- | :--- |
+| `--background` | review, adversarial-review, challenge, delegate, task | Runs as a background job. The command returns at once with a job ID, and the 10-minute limit of Claude Code no longer applies (`AGY_BACKGROUND_TIMEOUT_MS`, default 30 min). |
+| `--wait` | review, adversarial-review | Runs in the foreground without asking. |
+| `--base <branch>` | review, adversarial-review | Reviews the current branch against `<branch>`, e.g. `--base main`. |
+| `--scope auto\|working-tree\|branch` | review, adversarial-review | `auto` (default) reviews uncommitted changes when there are any, otherwise the branch against the default branch. |
+| `--resume` | delegate, task, challenge | Continues the last Antigravity conversation of that kind in this repository. Send only the new instruction. |
+| `--conversation <id>` | delegate, task, challenge | Continues a specific `agy` conversation. |
+| `--model <name>` | all runs | Model for this run (`agy models` lists them). |
+| `--effort <low\|medium\|high\|xhigh\|max>` | all runs | Reasoning effort for this run. |
 
 > [!IMPORTANT]
 > In headless mode, `agy` auto-denies every tool that needs permission **and ends the turn without an answer**. The wrapper handles it like this:
-> - `review`, `challenge` and `test` run in the default mode: the agent can read files inside the project, but not write or run commands.
+> - `review`, `adversarial-review`, `challenge` and `test` run in the default mode: the agent can read files inside the project, but not write or run commands.
 > - `delegate` and `task` run with `--mode accept-edits`: the agent can also create and edit files, but not run shell commands, so Claude runs the tests afterwards.
-> - Every prompt starts with tool rules (no terminal commands, stay inside the project folder), so the agent doesn't trip over a denied tool.
-> - If a turn still ends because of a denied tool, the wrapper reports `DENIED: ...` and names the tool.
+> - Every prompt starts with tool rules (no terminal commands, stay inside the project folder), and a turn cut short by a denied tool is reported as `DENIED: ...`.
 >
 > Set `AGY_APPROVAL_MODE=yolo` to let `delegate`/`task` run commands too (`--dangerously-skip-permissions`; it approves everything).
 
-Claude Code's Bash tool stops commands after 10 minutes at most. The commands ask Claude for that maximum, and the wrapper stops the sub-agent after `AGY_TIMEOUT_MS` (default 570 s) with a clear error, so split very large tasks.
+### Reviews
 
----
+What gets reviewed:
+- **Uncommitted changes**: staged, unstaged and **the content of new untracked files**.
+- **Or your branch** against `main` (or `--base <branch>`): commit list, diff stat and full diff.
 
-### 1. `/antigravity:task <feature-description>`
-
-Orchestrates the entire **Round-Trip Dual-Agent cycle** in a single command. 
+Antigravity answers in a fixed JSON schema (`schemas/review-output.schema.json`, enforced with `agy --json-schema`). The wrapper renders it like this:
 
 ```text
-/antigravity:task "Create a bulk email module with CSV/Excel recipient upload, rich-text editor, and role permissions"
-```
+# Revisión: cambios sin confirmar
 
-**How it works under the hood:**
-1. **Claude Code** structures the technical blueprint, interface contracts, and validation rules.
-2. **Antigravity** writes the files directly to your disk, creates automated tests, and returns a concise digest.
-3. **Claude Code** receives a handoff signal, inspects the created files, runs your test suite (`npm test`), fixes any edge cases or type mismatches, and presents the final verified result.
+**Veredicto:** ⚠️ REQUIERE ATENCIÓN
+
+El cambio introduce una inyección SQL crítica en deleteUser...
+
+## Hallazgos (1)
+
+### 1. 🔴 CRÍTICO — Inyección SQL en deleteUser
+`db.js:7` · confianza 100%
+
+Se concatena req.query.name en la sentencia DELETE...
+
+**Recomendación:** Usar consultas parametrizadas...
+
+## Próximos pasos
+- Reemplazar la concatenación por consultas parametrizadas.
 
 ---
+🛰️ Respondido por Antigravity CLI (agy) · conversación 95301bf1-... · 64.1 s · 70.3k tokens · carpeta: ...
+```
 
-### 2. `/antigravity:review`
-
-Audits your local changes (`git diff HEAD`, staged changes, or untracked modifications) before committing.
+Reviews never change code. After a review, Claude shows the findings and **asks which ones to fix** instead of fixing them on its own.
 
 ```text
 /antigravity:review
+/antigravity:review --base main revisa sobre todo la autorización
+/antigravity:adversarial-review --background piensa en qué pasa si el pago falla a la mitad
 ```
 
-**Output structure:**
-- **Security & Injection Risks:** OWASP Top 10, input sanitation, missing authorization checks.
-- **Logic, Bugs & Concurrency:** Race conditions, unhandled null pointers, memory leaks.
-- **Performance & Best Practices:** N+1 queries, synchronous blocking operations, indexing.
-- **Verdict:** Explicit `APPROVED` or `NEEDS ATTENTION` summary.
+### Background jobs
 
----
-
-### 3. `/antigravity:delegate <task>`
-
-Instructs the sub-agent to execute heavy local modifications without eating up Claude's token window.
+Every run, foreground or background, is recorded as a job for the current repository. The state is kept outside the repository, in `~/.antigravity-cc/state/` (`AGY_STATE_DIR` changes the location). It holds each job's status, output and `agy` conversation ID, and the last 50 jobs per repository are kept.
 
 ```text
-/antigravity:delegate Create unit test suite using Vitest for src/auth/tokenValidator.ts
+/antigravity:review --background
+/antigravity:status                 # table of running and recent jobs
+/antigravity:status agy-mv4fvk7a    # details of one job (unique ID prefixes work)
+/antigravity:result                 # output of the latest finished job
+/antigravity:cancel agy-mv4fvk7a    # stop it (kills the worker and agy)
 ```
 
-**Returned Digest:**
-- Files created / modified
-- Summary of changes implemented
-- Test execution output
-- Pending warnings or manual follow-ups
+If a background worker disappears (closed terminal, reboot), `status` marks the job as failed instead of leaving it "running" forever.
 
----
+### Continuing a conversation
 
-### 4. `/antigravity:challenge <hypothesis>`
-
-Acts as a skeptical senior software architect, stress-testing decisions and spotting architectural blind spots.
+`agy` keeps conversations, so follow-ups don't need the whole context again:
 
 ```text
-/antigravity:challenge Is SQLite in WAL mode suitable for handling 100 concurrent writer workers in Node.js?
+/antigravity:delegate Crea tests de integración para src/payments
+/antigravity:delegate --resume ahora cubre también los reembolsos parciales
 ```
 
-**Critique report includes:**
-- Unforeseen failure conditions & edge cases
-- Hardware, I/O, network, or concurrency bottlenecks
-- Superior architectural alternatives with trade-offs
-- Pragmatic bottom-line recommendation
+### `/antigravity:task <requirement>`
 
----
-
-### 5. `/antigravity:status`
-
-Quickly inspect your runtime configuration:
+Orchestrates the round-trip in one command:
+1. **Claude** turns the requirement into a technical spec (files, contracts, validation rules, tests).
+2. **Antigravity** writes the files on disk and returns a digest.
+3. **Claude** checks the real changes with `git diff`, runs your test suite, fixes what's wrong and reports.
 
 ```text
+/antigravity:task Crear módulo de envío masivo de correos con carga de destinatarios desde Excel
+```
+
+### Typical flows
+
+```text
+# Before committing
+/antigravity:review
+
+# Before shipping something risky
+/antigravity:adversarial-review --base main --background
+
+# Stuck on a bug
+/antigravity:delegate investiga por qué falla el test de login y aplica el arreglo mínimo
+
+# Long task
+/antigravity:task --background <requerimiento>
 /antigravity:status
-```
-
-```text
-======================================================
-  ESTADO DE INTEGRACIÓN ANTIGRAVITY-CC (v1.3.0)
-======================================================
-✔ Motor            : Antigravity CLI (agy) v1.3.3
-✔ Binario          : C:\Users\<you>\AppData\Local\Microsoft\WinGet\Packages\Google.AntigravityCLI_...\agy.exe
-✔ Autenticación    : cuenta de Antigravity (sesión gestionada por agy; cámbiala con /antigravity:login)
-✔ Modo lectura     : review, challenge, test (escrituras y comandos denegados)
-✔ Modo escritura   : delegate, task (--mode accept-edits, sin comandos de shell)
-✔ Timeout          : 570 s
-✔ Plataforma       : win32 (x64)
-✔ Node.js          : v22.14.0
-======================================================
-```
-
----
-
-### 6. `/antigravity:test`
-
-Validates that your CLI backend is connected, authenticated, and answering prompts in headless mode.
-
-```text
-/antigravity:test
+/antigravity:result
 ```
 
 ---
@@ -363,7 +367,9 @@ AGY_BIN=/home/me/.local/bin/agy   # custom binary (agy or gemini, auto-detected)
 AGY_ENGINE=antigravity            # 'antigravity' (default), 'gemini' (legacy, enterprise only) or 'codex'
 AGY_MODEL=                        # model override (list them with `agy models`)
 AGY_APPROVAL_MODE=auto_edit       # delegate/task: 'auto_edit' (default) or 'yolo' (also shell commands)
-AGY_TIMEOUT_MS=570000             # max time per sub-agent run
+AGY_TIMEOUT_MS=570000             # max time per foreground run
+AGY_BACKGROUND_TIMEOUT_MS=1800000 # max time per background job
+AGY_STATE_DIR=                    # where job state is stored (default ~/.antigravity-cc/state)
 AGY_DEBUG=1                       # print the raw backend events to stderr
 AGY_AUTH_MODE=google              # 'google' (default) or 'apikey' (keeps GEMINI_API_KEY in the sub-agent env)
 CODEX_BIN=codex                   # Codex binary when using the Codex engine
@@ -384,8 +390,8 @@ node bin/agy-wrapper.mjs challenge "Should we migrate to Kafka?" --engine codex
 Whenever you need to inspect connectivity, backend engine detection, or authentication state, use the built-in diagnostic tools:
 
 ```bash
-# Display detected binary, engine type, and active auth method
-node bin/agy-wrapper.mjs status
+# Check Node, git, Antigravity CLI and your session
+node bin/agy-wrapper.mjs setup
 
 # Run live end-to-end smoke test
 node bin/agy-wrapper.mjs test
@@ -456,6 +462,7 @@ This project is built from the ground up for safe publication to public open-sou
 - **Airtight `.gitignore`:** Pre-configured to block `.env`, `.env.*`, OAuth credential dumps, SSL certificates (`.pem`, `.key`), `.claude.json`, logs, and session snapshots.
 - **In-flight Sanitization:** The wrapper includes defense-in-depth regex masks that redact detected API key formats (`AIza...`, `sk-ant-...`, `sk-...`, `ghp_...`, Bearer tokens) before outputting logs or handling errors.
 - **Local Execution:** Prompts run directly on your machine through your local CLI authentication.
+- **Job state stays local:** job outputs and prompts (which can include your diffs) are stored in `~/.antigravity-cc/state/`, outside your repository, and are never sent anywhere except to your own `agy`.
 
 ---
 
@@ -473,6 +480,20 @@ npm test
 npm run check-security
 ```
 
+### Releasing a new version
+```bash
+# 1. Write the changes under "## [Unreleased]" in CHANGELOG.md
+# 2. Bump every version reference and date the changelog section
+npm run bump-version -- minor        # or patch / major / 1.5.0
+npm test
+# 3. Commit, tag and push
+git commit -am "chore(release): vX.Y.Z"
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin main vX.Y.Z
+```
+
+`npm run check-version` fails when any version reference drifts. GitHub Actions (`.github/workflows/ci.yml`) runs it and the full test suite on Windows, macOS and Linux for every push and pull request, and validates the plugin manifests.
+
 The security audit recursively scans every file in the project against known secret signatures (Google, Anthropic, OpenAI, GitHub, AWS, JWTs, Private Keys) and validates that `.gitignore` and `.env.example` adhere strictly to privacy guidelines.
 
 ---
@@ -482,35 +503,39 @@ The security audit recursively scans every file in the project against known sec
 ```text
 antigravity-cc/
 ├── .claude-plugin/
-│   ├── marketplace.json        # Claude Code local marketplace catalog
+│   ├── marketplace.json        # Claude Code marketplace catalog
 │   └── plugin.json             # Plugin metadata manifest
-├── commands/                   # Claude Code slash commands
-│   ├── task.md                 # /antigravity:task
-│   ├── review.md               # /antigravity:review
-│   ├── delegate.md             # /antigravity:delegate
-│   ├── challenge.md            # /antigravity:challenge
-│   ├── login.md                # /antigravity:login
-│   ├── status.md               # /antigravity:status
-│   └── test.md                 # /antigravity:test
 ├── .codex-plugin/
 │   └── plugin.json             # Manifest for Codex interoperability
+├── .github/workflows/ci.yml    # Tests on Windows/macOS/Linux + plugin validation
+├── agents/
+│   └── antigravity-rescue.md   # Subagent Claude can hand substantial tasks to
 ├── bin/
-│   └── agy-wrapper.mjs         # Multi-engine CLI bridge & orchestrator
+│   └── agy-wrapper.mjs         # CLI entry point and action orchestrator
+├── lib/
+│   ├── args.mjs                # Flag parsing (argv and leading flags in stdin text)
+│   ├── backend.mjs             # agy/gemini/codex detection, arguments, headless runs
+│   ├── git.mjs                 # Review target selection and context collection
+│   ├── jobs.mjs                # Per-repository job registry (status/result/cancel/resume)
+│   └── review.mjs              # Review prompts, structured output parsing and rendering
+├── commands/                   # Slash commands: setup, review, adversarial-review, challenge,
+│                               # delegate, task, status, result, cancel, login, test
+├── schemas/
+│   └── review-output.schema.json  # JSON schema enforced on review answers
+├── scripts/
+│   └── bump-version.mjs        # Release helper (bump + --check)
 ├── skills/
-│   ├── antigravity-task/       # Autonomous dual-agent round-trip skill
-│   ├── antigravity-review/     # Dual-agent code review skill
-│   ├── antigravity-delegate/   # Deep task & scaffolding delegation skill
-│   └── antigravity-challenge/  # Adversarial architecture review skill
-├── tests/
-│   ├── wrapper.test.mjs        # Functional CLI and command tests
-│   ├── backend.test.mjs        # Arg building, stdin transport & fake-backend tests
-│   └── security-audit.test.mjs # Automated credential & secret exposure scanner
+│   ├── antigravity-review/     # When to request a review (auto-invocable)
+│   ├── antigravity-challenge/  # When to request an architecture critique (auto-invocable)
+│   ├── antigravity-delegate/   # Delegation (user-invoked)
+│   ├── antigravity-task/       # Round-trip pipeline (user-invoked)
+│   └── antigravity-result-handling/  # Internal rules for presenting results
+├── tests/                      # node:test suites with fake agy backends and temp git repos
 ├── .env.example                # Safe environment template (placeholders only)
-├── .gitignore                  # Airtight exclusion rules for git
-├── CONTRIBUTING.md             # Guidelines for open-source contributors
 ├── CHANGELOG.md                # Release history (Semantic Versioning)
+├── CONTRIBUTING.md             # Guidelines for contributors
 ├── LICENSE                     # Community Open Source (Non-Commercial) License
-├── package.json                # Zero-dependency configuration & test scripts
+├── package.json                # Zero-dependency configuration & scripts
 └── README.md                   # Complete documentation
 ```
 
