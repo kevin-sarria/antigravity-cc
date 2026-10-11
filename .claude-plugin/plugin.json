@@ -1,6 +1,6 @@
 {
   "name": "antigravity",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Delega revisiones de código, scaffolding y tareas complejas a Google Antigravity CLI (agy) o Codex",
   "author": {
     "name": "Kevin Sarria"

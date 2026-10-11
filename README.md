@@ -272,7 +272,7 @@ Quickly inspect your runtime configuration:
 
 ```text
 ======================================================
-  ESTADO DE INTEGRACIÓN ANTIGRAVITY-CC (v1.2.0)
+  ESTADO DE INTEGRACIÓN ANTIGRAVITY-CC (v1.3.0)
 ======================================================
 ✔ Motor            : Antigravity CLI (agy) v1.3.3
 ✔ Binario          : C:\Users\<you>\AppData\Local\Microsoft\WinGet\Packages\Google.AntigravityCLI_...\agy.exe
@@ -391,6 +391,19 @@ node bin/agy-wrapper.mjs status
 node bin/agy-wrapper.mjs test
 ```
 
+### How do I know the answer really came from Antigravity?
+
+Every successful `agy` run ends with a receipt line that only `agy` can produce:
+
+```text
+🛰️ Respondido por Antigravity CLI (agy) · conversación b31196d3-ee51-488d-9b0e-787b1da38f6f · 3.6 s · 12.1k tokens · carpeta: C:\path\to\your\project
+```
+
+- The **conversation ID** matches a file written by `agy`. Check it with `Test-Path "$env:USERPROFILE\.gemini\antigravity-cli\conversations\<ID>.db"` (PowerShell) or `ls ~/.gemini/antigravity-cli/conversations/<ID>.db`.
+- Each run also writes a log in `~/.gemini/antigravity-cli/log/`. Its `workspaceDirs=[...]` line shows the folder `agy` worked in.
+- **carpeta** must be your project folder. If it shows another folder, open Claude Code inside the project and run the command again.
+- In Claude Code, expand the Bash call of the command: it shows the `node .../agy-wrapper.mjs <action>` execution and its raw output.
+
 ### 1. `IneligibleTierError` / `UNSUPPORTED_CLIENT` ("migrate to the Antigravity suite")
 
 - **Symptom:** `test` or any command fails with `This client is no longer supported for Gemini Code Assist for individuals`. Logging in again doesn't help.
@@ -495,6 +508,7 @@ antigravity-cc/
 ├── .env.example                # Safe environment template (placeholders only)
 ├── .gitignore                  # Airtight exclusion rules for git
 ├── CONTRIBUTING.md             # Guidelines for open-source contributors
+├── CHANGELOG.md                # Release history (Semantic Versioning)
 ├── LICENSE                     # Community Open Source (Non-Commercial) License
 ├── package.json                # Zero-dependency configuration & test scripts
 └── README.md                   # Complete documentation
