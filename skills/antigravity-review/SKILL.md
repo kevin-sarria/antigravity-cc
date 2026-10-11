@@ -1,30 +1,21 @@
 ---
 name: antigravity-review
-description: Ejecuta una revisión cruzada independiente del git diff local utilizando el sub-agente Antigravity (Gemini/Codex) para detectar vulnerabilidades, bugs de concurrencia y optimizaciones críticas.
+description: Usar cuando el usuario pida una segunda opinión, una revisión cruzada o una auditoría de los cambios locales sin confirmar (git diff) antes de un commit o merge, especialmente en código de seguridad, autenticación, concurrencia o refactors grandes. Antigravity revisa en modo solo lectura.
 ---
 
 # Antigravity Review
 
-Utiliza esta habilidad cuando quieras que un segundo agente de inteligencia artificial (Google Antigravity / Gemini o Codex) audite de manera independiente los cambios locales (`git diff`) antes de confirmar un commit o fusionar una rama.
-
-## Cuándo usar
-- Antes de hacer git commit de código complejo o crítico para la seguridad.
-- Para obtener una segunda opinión no sesgada sobre refactors, modelos de datos o autenticación.
-- Para verificar que no se introdujeron regresiones o condiciones de carrera.
+Un segundo agente (Google Antigravity) audita de forma independiente los cambios locales (`git diff HEAD` + archivos nuevos sin seguimiento). Antigravity corre en modo solo lectura: puede leer el repositorio para obtener contexto, pero sus intentos de escritura se rechazan.
 
 ## Cómo se ejecuta
-Ejecuta el comando en terminal:
+Usa la herramienta Bash con `timeout: 600000`. El foco es opcional; si no hay, deja el heredoc vacío.
+
 ```bash
-node ./bin/agy-wrapper.mjs review
-```
-O directamente con el comando de Claude Code:
-```text
-/antigravity:review
+node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" review <<'AGY_EOF'
+<foco opcional, ej. "seguridad del flujo de login">
+AGY_EOF
 ```
 
-## Salida esperada
-El sub-agente devuelve un reporte condensado clasificando:
-1. Riesgos de seguridad o inyecciones.
-2. Bugs de lógica y condiciones de carrera.
-3. Recomendaciones de rendimiento.
-O bien un veredicto explícito de **APROBADO**.
+## Qué hacer con la salida
+El reporte trae: 1) seguridad e inyección, 2) bugs y condiciones de carrera, 3) rendimiento, 4) veredicto **APROBADO** / **REQUIERE ATENCIÓN**.
+Antes de presentar un hallazgo como cierto, verifícalo en el código; Antigravity puede equivocarse. Si el wrapper falla, muestra su diagnóstico (p. ej. sugerirá `/antigravity:login` si la sesión no es válida).

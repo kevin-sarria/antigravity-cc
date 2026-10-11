@@ -15,11 +15,11 @@ Please maintain a polite, welcoming, and constructive environment for all contri
 1. **Prerequisites:**
    - Node.js >= 18.0.0
    - Git
-   - Google Antigravity CLI (`agy`), Gemini CLI (`@google/gemini-cli`), or Codex CLI
+   - Google Antigravity CLI (`agy`) or Codex CLI (Gemini CLI only for enterprise accounts)
 
 2. **Clone & Setup:**
    ```bash
-   git clone https://github.com/your-username/antigravity-cc.git
+   git clone https://github.com/kevin-sarria/antigravity-cc.git
    cd antigravity-cc
    npm install
    ```

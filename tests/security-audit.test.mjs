@@ -109,15 +109,19 @@ describe('Security & Sensitive Credentials Audit', () => {
 
   test('should ensure no personal user directory paths are hardcoded in source files', () => {
     const userPathViolations = [];
-    // Verify files don't hardcode specific local user identities like "C:\Users\<username>"
-    const specificUserPathRegex = /[A-Z]:\\Users\\<username>\\(?!Documents\\proyectos\\antigravity-cc)/i;
+    // Any real home directory (Windows, macOS or Linux). Documentation placeholders such as
+    // <username>, <you> or "me" are allowed.
+    const placeholder = '(?:<[^>]+>|me|you|user|username)';
+    const userPathRegex = new RegExp(
+      `[A-Z]:\\\\Users\\\\(?!${placeholder}\\\\)[^\\\\\\s"'\`]+\\\\|/(?:Users|home)/(?!${placeholder}/)[^/\\s"'\`]+/`,
+      'i'
+    );
 
     for (const filePath of allFiles) {
       const relativePath = path.relative(projectRoot, filePath);
-      // Skip test files if they only use relative paths
-      const content = readFileSync(filePath, 'utf-8');
-      if (specificUserPathRegex.test(content)) {
-        userPathViolations.push(relativePath);
+      const match = readFileSync(filePath, 'utf-8').match(userPathRegex);
+      if (match) {
+        userPathViolations.push(`${relativePath} (${match[0]})`);
       }
     }
 
@@ -126,6 +130,21 @@ describe('Security & Sensitive Credentials Audit', () => {
       [],
       `Personal absolute user paths found in: ${userPathViolations.join(', ')}`
     );
+  });
+
+  test('should ensure no personal email addresses are present in files', () => {
+    const allowedDomains = /@(?:example\.com|users\.noreply\.github\.com|anthropic\.com)$/i;
+    const emailRegex = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
+    const violations = [];
+
+    for (const filePath of allFiles) {
+      const relativePath = path.relative(projectRoot, filePath);
+      for (const email of readFileSync(filePath, 'utf-8').match(emailRegex) || []) {
+        if (!allowedDomains.test(email)) violations.push(`${relativePath} (${email})`);
+      }
+    }
+
+    assert.deepStrictEqual(violations, [], `Email addresses found in: ${violations.join(', ')}`);
   });
 });
 

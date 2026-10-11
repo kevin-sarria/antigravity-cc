@@ -8,8 +8,8 @@
   "plugins": [
     {
       "name": "antigravity",
-      "description": "Orquesta Google Antigravity CLI (Gemini) y Codex como sub-agentes ejecutores dentro de Claude Code",
-      "version": "1.0.0",
+      "description": "Orquesta Google Antigravity CLI (agy) y Codex como sub-agentes ejecutores dentro de Claude Code",
+      "version": "1.2.0",
       "category": "development",
       "source": "./",
       "author": {

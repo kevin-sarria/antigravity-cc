@@ -1,28 +1,20 @@
 ---
 name: antigravity-challenge
-description: Desafía una decisión de diseño, elección de arquitectura o hipótesis técnica pidiendo al modelo de Gemini/Codex un análisis escéptico y adversarial.
+description: Usar cuando haya que decidir una arquitectura, adoptar una biblioteca o elegir entre trade-offs (consistencia, concurrencia, escalabilidad) y convenga una crítica adversarial de otro modelo para encontrar puntos ciegos. Antigravity analiza en modo solo lectura.
 ---
 
 # Antigravity Challenge
 
-Esta habilidad actúa como un revisor de arquitectura escéptico y riguroso. Envía la propuesta de Claude a Antigravity (Gemini/Codex) para buscar puntos ciegos, cuellos de botella de escalabilidad, edge cases y alternativas superiores.
-
-## Cuándo usar
-- Antes de adoptar una biblioteca o arquitectura nueva (p. ej. "¿Es viable usar SQLite WAL con 50 workers concurrentes?").
-- Cuando se evalúa un trade-off complejo entre consistencia eventual vs inmediata.
-- Para contrarrestar posibles sesgos de confirmación o complacencia del modelo orquestador.
+Envía un planteamiento a Antigravity para que lo critique como un arquitecto escéptico: edge cases, cuellos de botella, alternativas superiores y una recomendación pragmática. Sirve para contrarrestar el sesgo de confirmación del agente orquestador.
 
 ## Cómo se ejecuta
+Usa la herramienta Bash con `timeout: 600000`. Escribe el planteamiento con el contexto necesario (restricciones, volumen, stack) dentro del heredoc:
+
 ```bash
-node ./bin/agy-wrapper.mjs challenge "¿Es viable usar SQLite WAL mode con 50 workers concurrentes?"
-```
-O directamente en Claude Code:
-```text
-/antigravity:challenge ¿Es viable usar SQLite WAL mode con 50 workers concurrentes?
+node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" challenge <<'AGY_EOF'
+¿Es viable usar SQLite en modo WAL con 50 workers concurrentes escribiendo?
+AGY_EOF
 ```
 
-## Salida esperada
-Un informe crítico que detalla:
-- Casos límite (edge cases) y condiciones de falla.
-- Cuellos de botella potenciales de hardware, I/O o red.
-- Comparativa con patrones arquitectónicos alternativos.
+## Qué hacer con la salida
+No la copies tal cual: di con qué puntos estás de acuerdo, cuáles no aplican al contexto del usuario y por qué, y deja la decisión al usuario.

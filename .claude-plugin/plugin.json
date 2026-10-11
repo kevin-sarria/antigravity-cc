@@ -1,9 +1,11 @@
 {
   "name": "antigravity",
-  "version": "1.0.0",
-  "description": "Delega revisiones de código, scaffolding y tareas complejas a Google Antigravity (Gemini) o Codex",
+  "version": "1.2.0",
+  "description": "Delega revisiones de código, scaffolding y tareas complejas a Google Antigravity CLI (agy) o Codex",
   "author": {
     "name": "Kevin Sarria"
   },
-  "license": "Custom (Community Open Source - Non-Commercial / No Resale)"
+  "license": "Custom (Community Open Source - Non-Commercial / No Resale)",
+  "homepage": "https://github.com/kevin-sarria/antigravity-cc",
+  "repository": "https://github.com/kevin-sarria/antigravity-cc"
 }

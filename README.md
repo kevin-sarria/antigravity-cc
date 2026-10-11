@@ -8,7 +8,7 @@
 [![Dependencies](https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Node)-success.svg)](package.json)
 [![Security: Audited](https://img.shields.io/badge/Security-Credential%20Clean-brightgreen.svg)](#security--privacy)
 
-> **Harmonious multi-agent pairing:** Connect **Claude Code** with **Google Antigravity CLI (`agy`)**, **Gemini**, and **Codex** as deep execution sub-agents.
+> **Unofficial community plugin** (not affiliated with Google or Anthropic). **Harmonious multi-agent pairing:** Connect **Claude Code** with **Google Antigravity CLI (`agy`)** and **Codex** as deep execution sub-agents.
 >
 > **Author & Intellectual Property:** Conceived, architected, and owned by **Kevin Sarria**. Generated with AI assistance. Open source by and for the community (**Strictly Non-Commercial / Not for Sale**).
 
@@ -22,7 +22,7 @@ Claude Code leads project direction, interactive architecture decisions, and hig
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
-  - [Authentication Setup (Google AI Pro vs API Key)](#authentication-setup-google-ai-pro-vs-api-key)
+  - [Authentication (Google AI Pro)](#authentication-google-ai-pro)
   - [1. Install as Claude Code Plugin](#1-install-as-claude-code-plugin)
   - [2. Run as Standalone CLI](#2-run-as-standalone-cli)
 - [Command Reference](#command-reference)
@@ -49,9 +49,9 @@ Claude Code leads project direction, interactive architecture decisions, and hig
 Pairing two frontier AI models in a single development session creates a balanced, self-correcting workflow:
 
 1. **Context Shielding:** Claude's context window remains lean. Delegated tasks (generating 30 DTOs, hundreds of test cases, boilerplate migrations) run in an isolated worker process. Claude only receives a structured executive digest.
-2. **Unbiased Cross-Model Audits:** Claude writes code, and Gemini/Antigravity audits the local git diff with zero confirmation bias, catching edge cases, race conditions, and OWASP vulnerabilities.
+2. **Unbiased Cross-Model Audits:** Claude writes code, and Antigravity audits the local git diff with zero confirmation bias, catching edge cases, race conditions, and OWASP vulnerabilities.
 3. **Adversarial Architecture Critique:** Before committing to a risky design choice or library, submit your proposal to an independent skeptical AI architect for stress-testing.
-4. **Universal Backend Support:** Works out of the box with Google Antigravity (`agy`), Google Gemini CLI (`@google/gemini-cli`), and OpenAI Codex (`codex`).
+4. **Universal Backend Support:** Works with Google Antigravity CLI (`agy`, default), OpenAI Codex (`codex`), and legacy Gemini CLI for enterprise accounts.
 5. **Zero External Dependencies:** Built entirely with Node.js standard libraries (`node:child_process`, `node:process`, `node:test`). No supply-chain bloat or vulnerable third-party dependencies.
 
 ---
@@ -71,14 +71,14 @@ Pairing two frontier AI models in a single development session creates a balance
 +-------------------------------------------------------------+
 |                     ANTIGRAVITY-CC                          |
 |  - CLI Bridge & Sanitizer (bin/agy-wrapper.mjs)             |
-|  - Multi-engine resolution (agy / gemini / codex)           |
+|  - Multi-engine resolution (agy / codex / legacy gemini)    |
 |  - Windows/POSIX safe Stdin pipe (no cmd buffer limits)     |
 +-------------------------------------------------------------+
                                |
                   spawn(engine, args) via Stdin
                                v
 +-------------------------------------------------------------+
-|             ANTIGRAVITY CLI / GEMINI / CODEX                |
+|                  ANTIGRAVITY CLI / CODEX                    |
 |  - Local Git Diff inspection                                |
 |  - Scaffolding / Test suite generation                      |
 |  - Generates concise executive summary (Digest)             |
@@ -94,73 +94,38 @@ Before using `antigravity-cc`, ensure you have:
 - **Node.js >= 18.0.0** (`node --version`)
 - **Claude Code** installed (`npm install -g @anthropic-ai/claude-code`)
 - **Git** installed and initialized in your workspace (`git --version`)
-- At least **one supported backend engine**:
-  - **Google Antigravity CLI (`agy`)**: Official Antigravity binary in `$PATH`.
-  - **Google Gemini CLI (`gemini`)**: Global npm package (`npm install -g @google/gemini-cli`).
-  - **OpenAI Codex CLI (`codex`)**: If using the optional Codex engine.
+- **Google Antigravity CLI (`agy`)**, the official successor of Gemini CLI:
+  ```powershell
+  # Windows
+  winget install Google.AntigravityCLI
+  # or: irm https://antigravity.google/cli/install.ps1 | iex
+  ```
+  ```bash
+  # macOS / Linux
+  curl -fsSL https://antigravity.google/cli/install.sh | bash
+  ```
+- Optional: **OpenAI Codex CLI (`codex`)** for the Codex engine.
+
+> [!IMPORTANT]
+> **Gemini CLI no longer works with personal Google accounts.** Google stopped serving Gemini CLI requests for free, Google AI Pro and Ultra accounts on **June 18, 2026** and replaced it with Antigravity CLI. With a personal account, Gemini CLI fails with `IneligibleTierError ... UNSUPPORTED_CLIENT ... migrate to the Antigravity suite`. `antigravity-cc` therefore uses `agy` by default and keeps Gemini CLI only as a legacy engine for Standard/Enterprise accounts (`AGY_ENGINE=gemini`).
+>
+> If you previously created an `agy` alias that just runs `gemini` (`agy.cmd` / `agy.ps1` in `%APPDATA%\npm`), remove or rename it: it shadows the real `agy`. The wrapper ignores such aliases on its own: it checks `agy --help` for Antigravity-only flags.
 
 ---
 
 ## Quick Start
 
-### Authentication Setup (Google AI Pro vs API Key)
+### Authentication (Google AI Pro)
 
-`antigravity-cc` is designed to seamlessly utilize your **Google AI Pro / Gemini Advanced** personal account quota, avoiding the restrictive 20 requests/day limit imposed on free API keys.
+Antigravity CLI uses your Google account, the same one you use in the Antigravity app. If you already use Antigravity on this machine, `agy` is usually signed in already. Check it with:
 
-#### Option A: Google Account Login (Recommended for Google AI Pro)
+```text
+/antigravity:test
+```
 
-When you authenticate with your personal Google account, the Gemini CLI leverages your AI Pro plan:
+If it isn't signed in, run `/antigravity:login`. Claude Code's Bash tool is not interactive, so this opens a **new console window** running `agy`. Follow the sign-in link there with **the account that holds the Google AI Pro subscription**, close the window, and run `/antigravity:test` again. (Standalone: `node bin/agy-wrapper.mjs login`.)
 
-1. **Sign in interactively:**
-   Open a terminal and run the Gemini CLI:
-   ```bash
-   gemini
-   ```
-   Select **Login with Google** (or type `/auth` inside the interactive session). Follow the browser prompt to log in with your personal Google account. Your session credentials are saved securely in `~/.gemini/oauth_creds.json`.
-
-2. **Check for conflicting system environment variables:**
-   If `GEMINI_API_KEY` or `GOOGLE_API_KEY` is present in your system or user environment variables, the Gemini CLI will prioritize that API key and fall back to the free tier (causing `429 Quota Exceeded` errors).
-
-   Verify and clear them if present:
-
-   **On Windows (PowerShell):**
-   ```powershell
-   # Check if variables are set:
-   echo $env:GEMINI_API_KEY
-   echo $env:GOOGLE_API_KEY
-
-   # If either prints a value, remove them from persistent user environment:
-   [System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', $null, 'User')
-   [System.Environment]::SetEnvironmentVariable('GOOGLE_API_KEY', $null, 'User')
-   ```
-   *(Restart your terminal window after clearing variables).*
-
-   **On macOS / Linux:**
-   ```bash
-   unset GEMINI_API_KEY
-   unset GOOGLE_API_KEY
-   ```
-   *(Also verify they are not exported in `~/.bashrc`, `~/.zshrc`, or `/etc/environment`).*
-
-3. **Built-in Protection in `agy-wrapper`:**
-   By default, `agy-wrapper.mjs` automatically unsets `GEMINI_API_KEY` and `GOOGLE_API_KEY` when spawning worker sub-processes, ensuring your Google AI Pro OAuth session is preferred unless you explicitly request API key mode.
-
-#### Option B: Standalone API Key Mode (Optional)
-
-If you do not have a Google AI Pro subscription and prefer using a standard Google AI Studio API key:
-
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Enable API key mode and set your key:
-   ```bash
-   AGY_AUTH_MODE=apikey
-   GEMINI_API_KEY=your_actual_api_key_here
-   ```
-
-> [!NOTE]
-> Free-tier API keys are subject to strict daily rate limits (e.g., 20 requests/day on flash models). For heavy dual-agent workflows, Google AI Pro login is recommended.
+By default the wrapper removes `GEMINI_API_KEY` / `GOOGLE_API_KEY` from the sub-agent environment, so a stray free-tier API key never replaces your account session. Set `AGY_AUTH_MODE=apikey` only if you really want to pass those keys through.
 
 ### 1. Install as Claude Code Plugin
 
@@ -168,7 +133,7 @@ Clone or download this repository to your preferred tools or plugins directory:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/antigravity-cc.git ~/plugins/antigravity-cc
+git clone https://github.com/kevin-sarria/antigravity-cc.git ~/plugins/antigravity-cc
 cd ~/plugins/antigravity-cc
 
 # Verify health and zero credentials
@@ -211,14 +176,26 @@ node bin/agy-wrapper.mjs review
 
 ## Command Reference
 
-| Command | Description | Engine |
+| Command | Description | Sub-agent permissions |
 | :--- | :--- | :--- |
-| `/antigravity:task <prompt>` | Autonomous round-trip pipeline: Claude plans $\rightarrow$ Gemini builds in disk $\rightarrow$ Claude audits & fixes. | Gemini + Claude Code |
-| `/antigravity:review` | Performs an independent audit on local uncommitted git diffs. | Gemini / Antigravity / Codex |
-| `/antigravity:delegate <task>` | Offloads repetitive scaffolding, test generation, or refactoring. | Gemini / Antigravity / Codex |
-| `/antigravity:challenge <idea>` | Evaluates technical solutions against edge cases and scalability bottlenecks. | Gemini / Antigravity / Codex |
-| `/antigravity:status` | Displays active engine status, executable binary, and runtime diagnostic info. | System |
-| `/antigravity:test` | Executes a ping smoke test verifying live end-to-end connectivity. | Backend |
+| `/antigravity:task <prompt>` | Autonomous round-trip pipeline: Claude plans $\rightarrow$ Antigravity builds on disk $\rightarrow$ Claude audits & fixes. | Read + edit files |
+| `/antigravity:review [focus]` | Performs an independent audit on local uncommitted changes (diff + untracked files). | Read-only |
+| `/antigravity:delegate <task>` | Offloads repetitive scaffolding, test generation, or refactoring. | Read + edit files |
+| `/antigravity:challenge <idea>` | Evaluates technical solutions against edge cases and scalability bottlenecks. | Read-only |
+| `/antigravity:login` | Opens a console window running `agy` so you can sign in with your Google AI Pro account. | — |
+| `/antigravity:status` | Displays active engine, CLI version, binary path, permissions and timeout. | — |
+| `/antigravity:test` | Executes a smoke test verifying live end-to-end connectivity and auth. | Read-only |
+
+> [!IMPORTANT]
+> In headless mode, `agy` auto-denies every tool that needs permission **and ends the turn without an answer**. The wrapper handles it like this:
+> - `review`, `challenge` and `test` run in the default mode: the agent can read files inside the project, but not write or run commands.
+> - `delegate` and `task` run with `--mode accept-edits`: the agent can also create and edit files, but not run shell commands, so Claude runs the tests afterwards.
+> - Every prompt starts with tool rules (no terminal commands, stay inside the project folder), so the agent doesn't trip over a denied tool.
+> - If a turn still ends because of a denied tool, the wrapper reports `DENIED: ...` and names the tool.
+>
+> Set `AGY_APPROVAL_MODE=yolo` to let `delegate`/`task` run commands too (`--dangerously-skip-permissions`; it approves everything).
+
+Claude Code's Bash tool stops commands after 10 minutes at most. The commands ask Claude for that maximum, and the wrapper stops the sub-agent after `AGY_TIMEOUT_MS` (default 570 s) with a clear error, so split very large tasks.
 
 ---
 
@@ -232,7 +209,7 @@ Orchestrates the entire **Round-Trip Dual-Agent cycle** in a single command.
 
 **How it works under the hood:**
 1. **Claude Code** structures the technical blueprint, interface contracts, and validation rules.
-2. **Gemini / Antigravity** writes the files directly to your disk, creates automated tests, and returns a concise digest.
+2. **Antigravity** writes the files directly to your disk, creates automated tests, and returns a concise digest.
 3. **Claude Code** receives a handoff signal, inspects the created files, runs your test suite (`npm test`), fixes any edge cases or type mismatches, and presents the final verified result.
 
 ---
@@ -295,12 +272,16 @@ Quickly inspect your runtime configuration:
 
 ```text
 ======================================================
-  ESTADO DE INTEGRACIÓN ANTIGRAVITY-CC (v1.0.0)
+  ESTADO DE INTEGRACIÓN ANTIGRAVITY-CC (v1.2.0)
 ======================================================
-✔ Binario en uso : agy
-✔ Tipo de motor  : antigravity
-✔ Plataforma     : win32 (x64)
-✔ Node.js        : v22.14.0
+✔ Motor            : Antigravity CLI (agy) v1.3.3
+✔ Binario          : C:\Users\<you>\AppData\Local\Microsoft\WinGet\Packages\Google.AntigravityCLI_...\agy.exe
+✔ Autenticación    : cuenta de Antigravity (sesión gestionada por agy; cámbiala con /antigravity:login)
+✔ Modo lectura     : review, challenge, test (escrituras y comandos denegados)
+✔ Modo escritura   : delegate, task (--mode accept-edits, sin comandos de shell)
+✔ Timeout          : 570 s
+✔ Plataforma       : win32 (x64)
+✔ Node.js          : v22.14.0
 ======================================================
 ```
 
@@ -328,7 +309,7 @@ One of the most powerful workflows enabled by `antigravity-cc` is the **Architec
    - Breaks down task into strict specifications, contracts & file paths.
        |
        v  (/antigravity:delegate <specification>)
-2. GEMINI / ANTIGRAVITY (Builder)
+2. ANTIGRAVITY (Builder)
    - Writes all files, models, boilerplate & tests directly on disk.
    - Returns a concise digest (files modified, test results).
        |
@@ -345,7 +326,7 @@ One of the most powerful workflows enabled by `antigravity-cc` is the **Architec
 
 You can trigger this entire automated pipeline in a single instruction inside Claude Code. Just paste this:
 
-> *"Claude, plan and architect the full implementation for **[describe your feature here]** (interfaces, folder structure, validation rules). Once your specification is ready, use `/antigravity:delegate` to have Gemini generate all files and implementations on disk. When Gemini returns, inspect the generated code, run our test suite, and apply any necessary fixes or polish."*
+> *"Claude, plan and architect the full implementation for **[describe your feature here]** (interfaces, folder structure, validation rules). Once your specification is ready, use `/antigravity:delegate` to have Antigravity generate all files and implementations on disk. When Antigravity returns, inspect the generated code, run our test suite, and apply any necessary fixes or polish."*
 
 ### Automating via `CLAUDE.md`
 
@@ -355,8 +336,8 @@ To make this the default behavior in any repository, add the following snippet t
 ## Sub-Agent Delegation Rules
 When asked to implement new modules or large features:
 1. First produce a concise implementation plan with interfaces and contracts.
-2. Delegate the heavy file creation and boilerplate to Gemini via `/antigravity:delegate "<plan>"`.
-3. Inspect Gemini's generated files and run tests.
+2. Delegate the heavy file creation and boilerplate to Antigravity via `/antigravity:delegate <plan>`.
+3. Inspect Antigravity's generated files and run tests.
 4. Apply any required fixes and show the final summary.
 ```
 
@@ -366,27 +347,26 @@ When asked to implement new modules or large features:
 
 `antigravity-cc` auto-detects your backend environment with the following priority order:
 
-1. `AGY_BIN` environment variable (if explicitly set)
-2. `agy` binary in `$PATH`
-3. `gemini` CLI binary in `$PATH` (with automatic headless workspace trust)
-4. `codex` binary in `$PATH` (when Codex engine is selected)
+1. `AGY_BIN` environment variable, if set. The wrapper checks whether it points to `agy` or to Gemini CLI.
+2. With `AGY_ENGINE=codex` / `--engine codex`: `CODEX_BIN` or `codex` in `$PATH`. If it is missing the wrapper fails instead of silently using another engine.
+3. The official **Antigravity CLI (`agy`)**, searched in `$PATH` and in its install locations (WinGet package folder, `%LOCALAPPDATA%\agy\bin`, `~/.local/bin`). The install locations matter because an editor started before the install keeps a stale `PATH`. Fake `agy` aliases of `gemini` are skipped.
+4. Legacy **Gemini CLI** (`gemini`) as a last resort (or with `AGY_ENGINE=gemini`). It only works with Standard/Enterprise accounts, and `status` warns when it is being used as a fallback.
 
-### Custom Configuration (`.env`)
+All prompts (including diffs and your task text) are sent through **stdin**. For `agy` that is a `stream-json` user event (`agy` doesn't read plain stdin), and for Gemini/Codex it is plain text. Command-line arguments are fixed, validated tokens, and `agy.exe` is spawned without a shell. This avoids shell injection and the Windows command-line length limits.
 
-You can create a `.env` file based on `.env.example`:
+### Configuration variables
+
+These are read from the environment of the process that runs the wrapper (see `.env.example` for the full list):
 
 ```bash
-# Custom path to executable binary
-AGY_BIN=/usr/local/bin/agy
-
-# Select engine: 'antigravity' (default) or 'codex'
-AGY_ENGINE=antigravity
-
-# Select specific model (e.g. gemini-2.5-pro, gemini-2.5-flash)
-AGY_MODEL=gemini-2.5-pro
-
-# Path to Codex binary if using Codex engine
-CODEX_BIN=codex
+AGY_BIN=/home/me/.local/bin/agy   # custom binary (agy or gemini, auto-detected)
+AGY_ENGINE=antigravity            # 'antigravity' (default), 'gemini' (legacy, enterprise only) or 'codex'
+AGY_MODEL=                        # model override (list them with `agy models`)
+AGY_APPROVAL_MODE=auto_edit       # delegate/task: 'auto_edit' (default) or 'yolo' (also shell commands)
+AGY_TIMEOUT_MS=570000             # max time per sub-agent run
+AGY_DEBUG=1                       # print the raw backend events to stderr
+AGY_AUTH_MODE=google              # 'google' (default) or 'apikey' (keeps GEMINI_API_KEY in the sub-agent env)
+CODEX_BIN=codex                   # Codex binary when using the Codex engine
 ```
 
 ### CLI Override Flags
@@ -411,62 +391,41 @@ node bin/agy-wrapper.mjs status
 node bin/agy-wrapper.mjs test
 ```
 
-### 1. `429 - Quota exceeded for metric: generate_content_free_tier_requests`
+### 1. `IneligibleTierError` / `UNSUPPORTED_CLIENT` ("migrate to the Antigravity suite")
 
-- **Symptom:** Running tests or commands fails with HTTP 429 and references `generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash`.
-- **Root Cause:** A free-tier Google AI Studio API key is being picked up instead of your personal Google account with Google AI Pro / Gemini Advanced.
-- **Resolution:**
-  1. Run `node bin/agy-wrapper.mjs status` to inspect active auth.
-  2. If an API key is detected, check your system environment variables in Windows PowerShell:
-     ```powershell
-     echo $env:GEMINI_API_KEY
-     echo $env:GOOGLE_API_KEY
-     ```
-  3. Clear them from user environment variables:
-     ```powershell
-     [System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', $null, 'User')
-     [System.Environment]::SetEnvironmentVariable('GOOGLE_API_KEY', $null, 'User')
-     ```
-  4. Ensure your `.env` does not contain `AGY_AUTH_MODE=apikey`.
-  5. Restart your terminal, run `gemini` in terminal, and choose **Login with Google**.
-  6. Re-test with `node bin/agy-wrapper.mjs test`.
+- **Symptom:** `test` or any command fails with `This client is no longer supported for Gemini Code Assist for individuals`. Logging in again doesn't help.
+- **Root Cause:** The wrapper is using the legacy **Gemini CLI**, which Google stopped serving for personal accounts (free, AI Pro and Ultra) on 2026-06-18.
+- **Resolution:** Install Antigravity CLI (`winget install Google.AntigravityCLI` on Windows, `curl -fsSL https://antigravity.google/cli/install.sh | bash` on macOS/Linux), then run `/antigravity:status`. It should show `Motor: Antigravity CLI (agy)`. Finish with `/antigravity:test`. If you had an `agy` alias pointing to `gemini`, rename or delete it.
 
-### 2. `IneligibleTierError` / `UNSUPPORTED_CLIENT`
+### 2. `DENIED: agy.exe se detuvo sin responder ...`
 
-- **Symptom:** Sub-agent throws an auth exception mentioning ineligible tier or client mismatch.
-- **Root Cause:** The OAuth token cached in `~/.gemini/oauth_creds.json` is stale, was issued under an older client version, or needs re-authorization.
-- **Resolution:**
-  1. Open a regular terminal window.
-  2. Run `gemini` interactively.
-  3. Type `/auth` (or select "Sign in with Google").
-  4. Follow the browser prompt to re-authenticate with your primary Google account.
-  5. Once completed, `node bin/agy-wrapper.mjs test` will report `PONG: Sub-agent live and answering`.
+- **Symptom:** A command fails and names a tool (`RunCommand`, `ViewFile`, `WriteToFile`...).
+- **Root Cause:** In headless mode `agy` ends the turn when a tool isn't permitted. Typical causes are a shell command, a write in a read-only command, or a read **outside the project folder** (for example a project the agent remembers from other Antigravity conversations).
+- **Resolution:** Run the command from the project root and phrase the task so it doesn't need shell commands. For `delegate`/`task`, `AGY_APPROVAL_MODE=yolo` approves everything, including commands. Use `AGY_DEBUG=1` to see the exact tool call and path.
 
-### 3. Windows `cmd.exe` Command-Line Length Limit (8,191 characters)
+### 3. `429` / quota exceeded
 
-- **Symptom:** Large git diffs fail or truncate when executed via standard shell arguments on Windows.
-- **Resolution:** `antigravity-cc` solves this natively. `agy-wrapper.mjs` feeds prompts and diffs directly via standard input (`stdin`) streaming, bypassing Windows `cmd.exe` character limits entirely.
+- **Root Cause:** The account hit its usage limits, or a free API key is being used (`AGY_AUTH_MODE=apikey`).
+- **Resolution:** Remove `AGY_AUTH_MODE=apikey` so your Google AI Pro session is used. Otherwise wait for the quota to reset or pick another model (`agy models`, `AGY_MODEL=...`).
 
-### 4. Engine Not Found (`agy` or `gemini` command missing)
+### 4. `TIMEOUT: ...`
 
-- **Symptom:** Wrapper reports: `ERROR: No valid engine binary found`.
-- **Resolution:**
-  1. Install Gemini CLI globally:
-     ```bash
-     npm install -g @google/gemini-cli
-     ```
-  2. Alternatively, specify the explicit binary location in `.env`:
-     ```bash
-     AGY_BIN=C:\Users\<username>\AppData\Roaming\npm\gemini.cmd
-     ```
+- **Root Cause:** The sub-agent ran longer than `AGY_TIMEOUT_MS` (default 570 s). Claude Code's Bash tool can't wait more than 10 minutes.
+- **Resolution:** Split the task into smaller pieces.
+
+### 5. Engine Not Found
+
+- **Symptom:** `NOT_INSTALLED: No se encontró Antigravity CLI (agy)`.
+- **Resolution:** Install Antigravity CLI (see [Prerequisites](#prerequisites)), or point `AGY_BIN` to the binary, e.g. `AGY_BIN=C:\Users\<username>\AppData\Local\agy\bin\agy.exe`.
 
 ---
 
 ## Platform Specific Notes
 
 ### Windows
-- **Command-line safety:** Uses a dedicated direct Stdin streaming pipe to bypass Windows `cmd.exe` 8,191-character command line buffer limits. Diff files of arbitrary size are safely piped.
-- **NPM Shims:** If you have `@google/gemini-cli` installed, you can create `agy.cmd` and `agy.ps1` shims in `%APPDATA%\npm\` to allow invoking `agy` directly from PowerShell and CMD.
+- **Command-line safety:** Prompts and diffs go through stdin, and `agy.exe` is spawned directly without `cmd.exe`, so there is no shell injection and no 8,191-character limit.
+- **Stale PATH:** After `winget install Google.AntigravityCLI`, apps that were already open (VS Code, terminals) keep the old `PATH`. The wrapper still finds `agy` in the WinGet package folder, but restart your terminal to use `agy` by hand.
+- **Old aliases:** An `agy.cmd` / `agy.ps1` in `%APPDATA%\npm` that runs `gemini` shadows the real `agy` in new shells. Rename or delete it.
 
 ### macOS & Linux
 Ensure executable permissions on the wrapper:
@@ -517,6 +476,7 @@ antigravity-cc/
 │   ├── review.md               # /antigravity:review
 │   ├── delegate.md             # /antigravity:delegate
 │   ├── challenge.md            # /antigravity:challenge
+│   ├── login.md                # /antigravity:login
 │   ├── status.md               # /antigravity:status
 │   └── test.md                 # /antigravity:test
 ├── .codex-plugin/
@@ -530,6 +490,7 @@ antigravity-cc/
 │   └── antigravity-challenge/  # Adversarial architecture review skill
 ├── tests/
 │   ├── wrapper.test.mjs        # Functional CLI and command tests
+│   ├── backend.test.mjs        # Arg building, stdin transport & fake-backend tests
 │   └── security-audit.test.mjs # Automated credential & secret exposure scanner
 ├── .env.example                # Safe environment template (placeholders only)
 ├── .gitignore                  # Airtight exclusion rules for git
