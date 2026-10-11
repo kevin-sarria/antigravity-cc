@@ -6,7 +6,8 @@
 
 import { spawn, execSync } from 'node:child_process';
 import process from 'node:process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 
 const VERSION = '1.0.0';
 
@@ -87,6 +88,46 @@ function isCommandAvailable(command) {
 }
 
 /**
+ * Detect current authentication mode without exposing secret values
+ */
+function getAuthMethodInfo() {
+  const isExplicitApiKeyMode = process.env.AGY_AUTH_MODE === 'apikey';
+
+  if (isExplicitApiKeyMode) {
+    const hasKey = Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+    return {
+      type: `API Key (${hasKey ? 'Configurada en entorno' : 'No detectada'} - AGY_AUTH_MODE=apikey)`,
+      isApiKey: true,
+    };
+  }
+
+  // Check Google login state in ~/.gemini
+  try {
+    const homeDir = process.env.USERPROFILE || process.env.HOME || '';
+    const googleAccountsPath = path.join(homeDir, '.gemini', 'google_accounts.json');
+    if (existsSync(googleAccountsPath)) {
+      const data = JSON.parse(readFileSync(googleAccountsPath, 'utf-8'));
+      if (data.active) {
+        const [user, domain] = data.active.split('@');
+        const masked = user.length > 2 ? `${user.slice(0, 2)}***@${domain}` : `***@${domain}`;
+        return {
+          type: `Login con Google (OAuth - Google AI Pro: ${masked})`,
+          isApiKey: false,
+          account: data.active,
+        };
+      }
+    }
+  } catch {
+    // Ignore read errors
+  }
+
+  return {
+    type: 'Login con Google (OAuth - Google AI Pro por defecto)',
+    isApiKey: false,
+  };
+}
+
+/**
  * Filter out noisy terminal banners or CLI initialization warnings
  */
 function cleanOutput(raw) {
@@ -136,6 +177,12 @@ export function runBackend(promptText, extraFlags = []) {
       ...process.env,
       GEMINI_CLI_TRUST_WORKSPACE: 'true',
     };
+
+    // By default, prioritize Google Account / OAuth (Google AI Pro) over API key
+    if (process.env.AGY_AUTH_MODE !== 'apikey') {
+      delete env.GEMINI_API_KEY;
+      delete env.GOOGLE_API_KEY;
+    }
 
     let cliArgs = [];
     let useStdin = false;
@@ -419,6 +466,7 @@ async function handleChallenge(question) {
  */
 async function handleStatus() {
   const backend = resolveBackend();
+  const authInfo = getAuthMethodInfo();
   console.log('\n======================================================');
   console.log(`  ESTADO DE INTEGRACIÓN ANTIGRAVITY-CC (v${VERSION})`);
   console.log('======================================================');
@@ -427,10 +475,14 @@ async function handleStatus() {
     console.log('   Ni `agy`, ni `gemini`, ni `codex` fueron encontrados en el PATH.');
     console.log('   Por favor instala @google/gemini-cli o define AGY_BIN.');
   } else {
-    console.log(`✔ Binario en uso : ${backend.bin}`);
-    console.log(`✔ Tipo de motor  : ${backend.type}`);
-    console.log(`✔ Plataforma     : ${process.platform} (${process.arch})`);
-    console.log(`✔ Node.js        : ${process.version}`);
+    console.log(`✔ Binario en uso  : ${backend.bin}`);
+    console.log(`✔ Tipo de motor   : ${backend.type}`);
+    console.log(`✔ Autenticación   : ${authInfo.type}`);
+    if (process.env.AGY_MODEL) {
+      console.log(`✔ Modelo forzado  : ${process.env.AGY_MODEL}`);
+    }
+    console.log(`✔ Plataforma      : ${process.platform} (${process.arch})`);
+    console.log(`✔ Node.js         : ${process.version}`);
   }
   console.log('======================================================\n');
 }
@@ -439,12 +491,41 @@ async function handleStatus() {
  * Action: test
  */
 async function handleTest() {
+  const authInfo = getAuthMethodInfo();
   console.log('Probando conectividad con el motor de Antigravity / Gemini...');
+  console.log(`ℹ️ Método de autenticación activo: ${authInfo.type}`);
+
   try {
     const ping = await runBackend('Responde exactamente y únicamente: "Antigravity CLI conectado correctamente"');
     console.log(`✔ Resultado: ${ping}`);
   } catch (error) {
-    console.error(`❌ Prueba fallida: ${error.message}`);
+    console.error(`\n❌ Prueba fallida: ${error.message}\n`);
+
+    if (error.message.includes('429') || error.message.includes('Quota exceeded') || error.message.includes('free_tier_requests')) {
+      console.error('──────────────────────────────────────────────────────');
+      console.error('⚠️ DIAGNÓSTICO: Error 429 (Cuota de API Key gratuita agotada)');
+      console.error('El CLI de Gemini alcanzó el límite diario del tier gratuito de una API Key.');
+      console.error('Si tienes suscripción Google AI Pro, debes usar el inicio de sesión con Google.\n');
+      console.error('PASOS PARA RESOLVER:');
+      console.error('1. Elimina la clave de tus variables de entorno en PowerShell:');
+      console.error('   [System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY", $null, "User")');
+      console.error('   [System.Environment]::SetEnvironmentVariable("GOOGLE_API_KEY", $null, "User")');
+      console.error('2. Abre una terminal normal de Windows y autentica con Google:');
+      console.error('   gemini');
+      console.error('   (Elige "Sign in with Google" o ejecuta `/auth` para vincular tu cuenta con Google AI Pro).');
+      console.error('──────────────────────────────────────────────────────\n');
+    } else if (error.message.includes('IneligibleTierError') || error.message.includes('UNSUPPORTED_CLIENT')) {
+      console.error('──────────────────────────────────────────────────────');
+      console.error('⚠️ DIAGNÓSTICO: Sesión OAuth antigua o desactualizada');
+      console.error('La sesión previa guardada en ~/.gemini/oauth_creds.json requiere re-autenticación interactiva.\n');
+      console.error('PASOS PARA RESOLVER:');
+      console.error('1. Abre una terminal normal de Windows (CMD o PowerShell fuera de Claude) y ejecuta:');
+      console.error('   gemini');
+      console.error('2. Selecciona "Sign in with Google" (o escribe `/auth`) y completa el inicio de sesión en tu navegador con tu cuenta Google AI Pro.');
+      console.error('3. Sal de la terminal interactiva escribiendo `/exit` y vuelve a probar `node bin/agy-wrapper.mjs test`.');
+      console.error('──────────────────────────────────────────────────────\n');
+    }
+
     process.exit(1);
   }
 }
