@@ -22,21 +22,25 @@ Claude Code leads project direction, interactive architecture decisions, and hig
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
-  - [Install as Claude Code Plugin](#1-install-as-claude-code-plugin)
-  - [Run as Standalone CLI](#2-run-as-standalone-cli)
+  - [Authentication Setup (Google AI Pro vs API Key)](#authentication-setup-google-ai-pro-vs-api-key)
+  - [1. Install as Claude Code Plugin](#1-install-as-claude-code-plugin)
+  - [2. Run as Standalone CLI](#2-run-as-standalone-cli)
 - [Command Reference](#command-reference)
-  - [1. `/antigravity:review`](#1-antigravityreview)
-  - [2. `/antigravity:delegate <task>`](#2-antigravitydelegatetask)
-  - [3. `/antigravity:challenge <hypothesis>`](#3-antigravitychallengehypothesis)
-  - [4. `/antigravity:status`](#4-antigravitystatus)
-  - [5. `/antigravity:test`](#5-antigravitytest)
+  - [1. `/antigravity:task <prompt>`](#1-antigravitytask-prompt)
+  - [2. `/antigravity:review`](#2-antigravityreview)
+  - [3. `/antigravity:delegate <task>`](#3-antigravitydelegatetask)
+  - [4. `/antigravity:challenge <hypothesis>`](#4-antigravitychallengehypothesis)
+  - [5. `/antigravity:status`](#5-antigravitystatus)
+  - [6. `/antigravity:test`](#6-antigravitytest)
+- [Dual-Agent Round-Trip Workflow](#dual-agent-round-trip-workflow-the-ping-pong-pattern)
 - [Engine & Model Configuration](#engine--model-configuration)
+- [Troubleshooting & Diagnostics](#troubleshooting--diagnostics)
 - [Platform Specific Notes](#platform-specific-notes)
 - [Security & Privacy Guarantee](#security--privacy-guarantee)
 - [Testing & Quality Assurance](#testing--quality-assurance)
 - [Repository Structure](#repository-structure)
 - [Contributing](#contributing)
-- [License](#license)
+- [Intellectual Property & License](#intellectual-property--license)
 
 ---
 
@@ -98,6 +102,65 @@ Before using `antigravity-cc`, ensure you have:
 ---
 
 ## Quick Start
+
+### Authentication Setup (Google AI Pro vs API Key)
+
+`antigravity-cc` is designed to seamlessly utilize your **Google AI Pro / Gemini Advanced** personal account quota, avoiding the restrictive 20 requests/day limit imposed on free API keys.
+
+#### Option A: Google Account Login (Recommended for Google AI Pro)
+
+When you authenticate with your personal Google account, the Gemini CLI leverages your AI Pro plan:
+
+1. **Sign in interactively:**
+   Open a terminal and run the Gemini CLI:
+   ```bash
+   gemini
+   ```
+   Select **Login with Google** (or type `/auth` inside the interactive session). Follow the browser prompt to log in with your personal Google account. Your session credentials are saved securely in `~/.gemini/oauth_creds.json`.
+
+2. **Check for conflicting system environment variables:**
+   If `GEMINI_API_KEY` or `GOOGLE_API_KEY` is present in your system or user environment variables, the Gemini CLI will prioritize that API key and fall back to the free tier (causing `429 Quota Exceeded` errors).
+
+   Verify and clear them if present:
+
+   **On Windows (PowerShell):**
+   ```powershell
+   # Check if variables are set:
+   echo $env:GEMINI_API_KEY
+   echo $env:GOOGLE_API_KEY
+
+   # If either prints a value, remove them from persistent user environment:
+   [System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', $null, 'User')
+   [System.Environment]::SetEnvironmentVariable('GOOGLE_API_KEY', $null, 'User')
+   ```
+   *(Restart your terminal window after clearing variables).*
+
+   **On macOS / Linux:**
+   ```bash
+   unset GEMINI_API_KEY
+   unset GOOGLE_API_KEY
+   ```
+   *(Also verify they are not exported in `~/.bashrc`, `~/.zshrc`, or `/etc/environment`).*
+
+3. **Built-in Protection in `agy-wrapper`:**
+   By default, `agy-wrapper.mjs` automatically unsets `GEMINI_API_KEY` and `GOOGLE_API_KEY` when spawning worker sub-processes, ensuring your Google AI Pro OAuth session is preferred unless you explicitly request API key mode.
+
+#### Option B: Standalone API Key Mode (Optional)
+
+If you do not have a Google AI Pro subscription and prefer using a standard Google AI Studio API key:
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Enable API key mode and set your key:
+   ```bash
+   AGY_AUTH_MODE=apikey
+   GEMINI_API_KEY=your_actual_api_key_here
+   ```
+
+> [!NOTE]
+> Free-tier API keys are subject to strict daily rate limits (e.g., 20 requests/day on flash models). For heavy dual-agent workflows, Google AI Pro login is recommended.
 
 ### 1. Install as Claude Code Plugin
 
@@ -190,7 +253,7 @@ Audits your local changes (`git diff HEAD`, staged changes, or untracked modific
 
 ---
 
-### 2. `/antigravity:delegate <task>`
+### 3. `/antigravity:delegate <task>`
 
 Instructs the sub-agent to execute heavy local modifications without eating up Claude's token window.
 
@@ -206,7 +269,7 @@ Instructs the sub-agent to execute heavy local modifications without eating up C
 
 ---
 
-### 3. `/antigravity:challenge <hypothesis>`
+### 4. `/antigravity:challenge <hypothesis>`
 
 Acts as a skeptical senior software architect, stress-testing decisions and spotting architectural blind spots.
 
@@ -222,7 +285,7 @@ Acts as a skeptical senior software architect, stress-testing decisions and spot
 
 ---
 
-### 4. `/antigravity:status`
+### 5. `/antigravity:status`
 
 Quickly inspect your runtime configuration:
 
@@ -243,7 +306,7 @@ Quickly inspect your runtime configuration:
 
 ---
 
-### 5. `/antigravity:test`
+### 6. `/antigravity:test`
 
 Validates that your CLI backend is connected, authenticated, and answering prompts in headless mode.
 
@@ -333,6 +396,69 @@ You can also override settings dynamically per command:
 ```bash
 node bin/agy-wrapper.mjs challenge "Should we migrate to Kafka?" --engine codex
 ```
+
+---
+
+## Troubleshooting & Diagnostics
+
+Whenever you need to inspect connectivity, backend engine detection, or authentication state, use the built-in diagnostic tools:
+
+```bash
+# Display detected binary, engine type, and active auth method
+node bin/agy-wrapper.mjs status
+
+# Run live end-to-end smoke test
+node bin/agy-wrapper.mjs test
+```
+
+### 1. `429 - Quota exceeded for metric: generate_content_free_tier_requests`
+
+- **Symptom:** Running tests or commands fails with HTTP 429 and references `generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash`.
+- **Root Cause:** A free-tier Google AI Studio API key is being picked up instead of your personal Google account with Google AI Pro / Gemini Advanced.
+- **Resolution:**
+  1. Run `node bin/agy-wrapper.mjs status` to inspect active auth.
+  2. If an API key is detected, check your system environment variables in Windows PowerShell:
+     ```powershell
+     echo $env:GEMINI_API_KEY
+     echo $env:GOOGLE_API_KEY
+     ```
+  3. Clear them from user environment variables:
+     ```powershell
+     [System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', $null, 'User')
+     [System.Environment]::SetEnvironmentVariable('GOOGLE_API_KEY', $null, 'User')
+     ```
+  4. Ensure your `.env` does not contain `AGY_AUTH_MODE=apikey`.
+  5. Restart your terminal, run `gemini` in terminal, and choose **Login with Google**.
+  6. Re-test with `node bin/agy-wrapper.mjs test`.
+
+### 2. `IneligibleTierError` / `UNSUPPORTED_CLIENT`
+
+- **Symptom:** Sub-agent throws an auth exception mentioning ineligible tier or client mismatch.
+- **Root Cause:** The OAuth token cached in `~/.gemini/oauth_creds.json` is stale, was issued under an older client version, or needs re-authorization.
+- **Resolution:**
+  1. Open a regular terminal window.
+  2. Run `gemini` interactively.
+  3. Type `/auth` (or select "Sign in with Google").
+  4. Follow the browser prompt to re-authenticate with your primary Google account.
+  5. Once completed, `node bin/agy-wrapper.mjs test` will report `PONG: Sub-agent live and answering`.
+
+### 3. Windows `cmd.exe` Command-Line Length Limit (8,191 characters)
+
+- **Symptom:** Large git diffs fail or truncate when executed via standard shell arguments on Windows.
+- **Resolution:** `antigravity-cc` solves this natively. `agy-wrapper.mjs` feeds prompts and diffs directly via standard input (`stdin`) streaming, bypassing Windows `cmd.exe` character limits entirely.
+
+### 4. Engine Not Found (`agy` or `gemini` command missing)
+
+- **Symptom:** Wrapper reports: `ERROR: No valid engine binary found`.
+- **Resolution:**
+  1. Install Gemini CLI globally:
+     ```bash
+     npm install -g @google/gemini-cli
+     ```
+  2. Alternatively, specify the explicit binary location in `.env`:
+     ```bash
+     AGY_BIN=C:\Users\<username>\AppData\Roaming\npm\gemini.cmd
+     ```
 
 ---
 
