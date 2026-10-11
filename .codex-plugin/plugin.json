@@ -1,0 +1,21 @@
+{
+  "name": "antigravity-cc",
+  "version": "1.0.0",
+  "description": "Multi-agent pairing tool connecting Claude Code and Antigravity (Gemini) / Codex",
+  "author": {
+    "name": "Antigravity CC Team"
+  },
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Antigravity CC",
+    "shortDescription": "Harmonious multi-agent pairing for Claude Code & Antigravity/Codex",
+    "longDescription": "Enables dual-agent workflows: cross-model code review, heavy task delegation, and adversarial architectural challenges.",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ]
+  }
+}

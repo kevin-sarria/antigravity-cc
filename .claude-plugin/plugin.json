@@ -1,0 +1,41 @@
+{
+  "name": "antigravity",
+  "version": "1.0.0",
+  "description": "Delega revisiones de código, scaffolding y tareas complejas a Google Antigravity (Gemini) o Codex",
+  "author": {
+    "name": "Antigravity CC Team"
+  },
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "review",
+      "description": "Revisión independiente del git diff local usando Gemini/Antigravity",
+      "executable": "node",
+      "args": ["${pluginRoot}/bin/agy-wrapper.mjs", "review"]
+    },
+    {
+      "name": "delegate",
+      "description": "Delega una tarea técnica a Antigravity y devuelve un resumen condensado",
+      "executable": "node",
+      "args": ["${pluginRoot}/bin/agy-wrapper.mjs", "delegate"]
+    },
+    {
+      "name": "challenge",
+      "description": "Pide a Gemini/Antigravity que critique y busque fallos de arquitectura en la solución actual de Claude",
+      "executable": "node",
+      "args": ["${pluginRoot}/bin/agy-wrapper.mjs", "challenge"]
+    },
+    {
+      "name": "status",
+      "description": "Muestra el estado del motor backend configurado (Antigravity/Gemini o Codex)",
+      "executable": "node",
+      "args": ["${pluginRoot}/bin/agy-wrapper.mjs", "status"]
+    },
+    {
+      "name": "test",
+      "description": "Prueba de conectividad inmediata con el CLI de Antigravity",
+      "executable": "node",
+      "args": ["${pluginRoot}/bin/agy-wrapper.mjs", "test"]
+    }
+  ]
+}
