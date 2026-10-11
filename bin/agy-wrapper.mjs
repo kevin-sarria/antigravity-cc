@@ -11,7 +11,7 @@ import { existsSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const IS_WINDOWS = process.platform === 'win32';
 
 // Bash tool in Claude Code allows at most 10 minutes; stay below it so we can report the timeout ourselves.
@@ -382,6 +382,20 @@ function killTree(child) {
   }
 }
 
+/**
+ * Proof that the answer came from agy: its conversation ID can be checked against
+ * ~/.gemini/antigravity-cli/conversations/<id>.db and the per-run logs in .../log/.
+ */
+export function formatAgyReceipt(result) {
+  const parts = ['🛰️ Respondido por Antigravity CLI (agy)'];
+  if (result.conversation_id) parts.push(`conversación ${result.conversation_id}`);
+  if (typeof result.duration_seconds === 'number') parts.push(`${result.duration_seconds.toFixed(1)} s`);
+  const tokens = result.usage?.total_tokens;
+  if (typeof tokens === 'number') parts.push(`${(tokens / 1000).toFixed(1)}k tokens`);
+  parts.push(`carpeta: ${process.cwd()}`);
+  return parts.join(' · ');
+}
+
 function describeDenied(denied) {
   if (!Array.isArray(denied) || denied.length === 0) return '';
   const names = [...new Set(denied.map((d) => d.display_name || d.action).filter(Boolean))];
@@ -494,7 +508,7 @@ export function runBackend(promptText, { mode = 'read' } = {}) {
           if (mode === 'read') text += ' (Esperado: este comando es de solo lectura.)';
           else text += ' Para permitir comandos de shell usa AGY_APPROVAL_MODE=yolo.';
         }
-        return resolve(sanitizeSensitiveData(text));
+        return resolve(`${sanitizeSensitiveData(text)}\n\n${formatAgyReceipt(result)}`);
       }
 
       const parsed = backend.type === 'gemini' ? parseGeminiJson(stdout) : null;

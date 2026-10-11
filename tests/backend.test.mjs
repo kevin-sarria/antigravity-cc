@@ -289,3 +289,15 @@ describe('end-to-end with a fake Antigravity CLI (agy)', () => {
     assert.ok(failed, 'expected a non-zero exit');
   });
 });
+
+describe('agy receipt', () => {
+  test('includes conversation id, duration, tokens and folder', async () => {
+    const { formatAgyReceipt } = await import('../bin/agy-wrapper.mjs');
+    const line = formatAgyReceipt({ conversation_id: 'abc-123', duration_seconds: 12.34, usage: { total_tokens: 41200 } });
+    assert.match(line, /^🛰️ Respondido por Antigravity CLI \(agy\)/);
+    assert.match(line, /conversación abc-123/);
+    assert.match(line, /12\.3 s/);
+    assert.match(line, /41\.2k tokens/);
+    assert.ok(line.includes(process.cwd()));
+  });
+});

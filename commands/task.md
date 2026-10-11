@@ -29,3 +29,5 @@ AGY_EOF
 Muestra al usuario el reporte final: qué se implementó, archivos tocados, qué corrigió Claude sobre lo de Antigravity y el estado real de las pruebas (con la salida si fallan).
 
 Si el wrapper falla, muestra su diagnóstico y no sigas con la Fase 3.
+
+Copia siempre al usuario, sin cambios, la línea final que empieza con "🛰️ Respondido por Antigravity CLI": es la prueba de que la respuesta vino de agy (el ID de conversación se puede verificar en ~/.gemini/antigravity-cli/conversations/).

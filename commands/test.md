@@ -10,3 +10,5 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" test
 ```
 
 Si falla por autenticación, muestra el diagnóstico y sugiere `/antigravity:login --reset`.
+
+Copia siempre al usuario, sin cambios, la línea final que empieza con "🛰️ Respondido por Antigravity CLI": es la prueba de que la respuesta vino de agy (el ID de conversación se puede verificar en ~/.gemini/antigravity-cli/conversations/).

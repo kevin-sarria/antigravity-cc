@@ -13,3 +13,5 @@ AGY_EOF
 ```
 
 Después, ejecuta `git status` y `git diff --stat` para confirmar qué cambió realmente en disco, y muestra al usuario el resumen de Antigravity junto con esa verificación. Si el resumen afirma cambios que no aparecen en git, dilo claramente. Si el comando falla, muestra el diagnóstico que imprime el wrapper.
+
+Copia siempre al usuario, sin cambios, la línea final que empieza con "🛰️ Respondido por Antigravity CLI": es la prueba de que la respuesta vino de agy (el ID de conversación se puede verificar en ~/.gemini/antigravity-cli/conversations/).

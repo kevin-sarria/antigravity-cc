@@ -13,3 +13,5 @@ AGY_EOF
 ```
 
 Analiza la crítica devuelta por Antigravity: separa los puntos sólidos de los débiles, di con cuáles estás de acuerdo y por qué, y contrasta las alternativas arquitectónicas con el usuario. Si el comando falla, muestra el diagnóstico que imprime el wrapper.
+
+Copia siempre al usuario, sin cambios, la línea final que empieza con "🛰️ Respondido por Antigravity CLI": es la prueba de que la respuesta vino de agy (el ID de conversación se puede verificar en ~/.gemini/antigravity-cli/conversations/).
