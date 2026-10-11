@@ -17,6 +17,8 @@ Escribir tests unitarios con Vitest para src/auth.ts
 AGY_EOF
 ```
 
+Si la instrucción es larga (más de unas 20 líneas, o con fragmentos de código), guárdala primero con la herramienta Write en un archivo fuera del repositorio y usa `delegate --file "<ruta>"` en lugar del heredoc.
+
 ## Después de ejecutar
 1. Ejecuta `git status` y `git diff --stat`: confirma que los cambios que el resumen afirma existen realmente en disco.
 2. Ejecuta las pruebas si Antigravity no pudo hacerlo.

@@ -31,6 +31,17 @@ import {
 } from '../lib/backend.mjs';
 import { collectReviewContext, isGitRepo, resolveReviewTarget } from '../lib/git.mjs';
 import {
+  EFFORT_LABELS,
+  describeAliases,
+  isEffortWord,
+  loadCatalog,
+  normalizeEffort,
+  readConfig,
+  resolveModelSelection,
+  resolveRunModel,
+  writeConfig,
+} from '../lib/models.mjs';
+import {
   createJob,
   findJob,
   isActive,
@@ -186,6 +197,20 @@ function prepareTask(text) {
   };
 }
 
+function resolveSelection(flags) {
+  try {
+    return resolveRunModel(flags, resolveBackend());
+  } catch (error) {
+    throw new UsageError(error.message);
+  }
+}
+
+/** The receipt names the model so the user can tell Flash from Pro at a glance. */
+function withModel(receipt, label) {
+  const model = label ? `modelo ${label}` : 'modelo predeterminado de agy';
+  return receipt.includes(' · carpeta: ') ? receipt.replace(' · carpeta: ', ` · ${model} · carpeta: `) : `${receipt} · ${model}`;
+}
+
 function resolveConversation(kind, flags, cwd) {
   if (flags.conversation) return flags.conversation;
   if (!flags.resume || flags.fresh) return undefined;
@@ -208,12 +233,13 @@ export function prepareAction(kind, text, flags, cwd = process.cwd()) {
   else throw new UsageError(`Acción desconocida: ${kind}`);
   if (prepared.nothingToDo) return prepared;
 
+  const selection = resolveSelection(flags);
   const { model, effort, conversationId } = validateRunOptions({
-    model: flags.model,
-    effort: flags.effort,
+    model: selection.model,
+    effort: selection.effort,
     conversationId: resolveConversation(kind, flags, cwd),
   });
-  return { ...prepared, kind, engine: flags.engine || null, model, effort, conversationId };
+  return { ...prepared, kind, engine: flags.engine || null, model, effort, modelLabel: selection.label, conversationId };
 }
 
 function firstLine(text, limit = 100) {
@@ -259,7 +285,7 @@ export async function runPrepared(payload, { timeoutMs, onSpawn } = {}) {
     summary = firstLine(result.text);
   }
   if (payload.footer) body += `\n\n${payload.footer}`;
-  return { output: `${body}\n\n---\n${result.receipt}`, conversationId: result.conversationId, summary };
+  return { output: `${body}\n\n---\n${withModel(result.receipt, payload.modelLabel)}`, conversationId: result.conversationId, summary };
 }
 
 // ---------------------------------------------------------------------------
@@ -446,11 +472,20 @@ async function collectSetupReport({ ping = true } = {}) {
     auth: { checked: false, ok: false, error: null },
     install: backend && backend.type === 'antigravity' ? null : { command: installCommand() },
     approvalMode: process.env.AGY_APPROVAL_MODE || 'auto_edit',
+    model: { label: null, error: null },
   };
+  let selection = {};
+  try {
+    selection = resolveRunModel({}, backend);
+    report.model.label = selection.label;
+  } catch (error) {
+    report.model.error = error.message;
+  }
   if (backend && ping) {
     report.auth.checked = true;
     try {
-      await runBackend('Responde exactamente y únicamente: OK', { mode: 'read', timeoutMs: 120000 });
+      // The ping uses the chosen default model, so setup also proves that model works.
+      await runBackend('Responde exactamente y únicamente: OK', { mode: 'read', timeoutMs: 120000, model: selection.model, effort: selection.effort });
       report.auth.ok = true;
     } catch (error) {
       report.auth.error = error.message;
@@ -478,6 +513,8 @@ function renderSetupReport(report) {
     out.push(`${ok(report.auth.ok)} Sesión: ${report.auth.ok ? 'activa (respondió a una prueba)' : 'falló la prueba'}`);
     if (report.auth.error) out.push(`   ${report.auth.error.split('\n')[0]}`);
   }
+  if (report.model.error) out.push(`❌ Modelo: ${report.model.error} Cámbialo con /antigravity:model.`);
+  else out.push(`ℹ️ Modelo: ${report.model.label || 'predeterminado de agy (Flash)'} · cámbialo con /antigravity:model`);
   out.push(
     `ℹ️ Permisos: review/adversarial-review/challenge solo lectura · delegate/task ${report.approvalMode === 'yolo' ? 'todo aprobado (yolo)' : 'leen y editan archivos, sin comandos'}`
   );
@@ -499,12 +536,84 @@ async function handleSetup(flags) {
   else console.log(renderSetupReport(report));
 }
 
-async function handleTest() {
+async function handleTest(flags) {
   const backend = resolveBackend();
   console.log(`Probando conectividad con ${backend ? ENGINE_LABELS[backend.type] : 'el sub-agente'}...`);
   if (backend?.type === 'gemini') console.log(`ℹ️ Método de autenticación activo: ${getGeminiAuthInfo()}`);
-  const { text, receipt } = await runBackend('Responde exactamente y únicamente: "Antigravity CLI conectado correctamente"', { mode: 'read' });
-  console.log(`✔ Resultado: ${text}\n\n${receipt}`);
+  const selection = resolveSelection(flags);
+  const { text, receipt } = await runBackend('Responde exactamente y únicamente: "Antigravity CLI conectado correctamente"', {
+    mode: 'read',
+    model: selection.model,
+    effort: selection.effort,
+  });
+  console.log(`✔ Resultado: ${text}\n\n${withModel(receipt, selection.label)}`);
+}
+
+/**
+ * /antigravity:model — show or change the default model and effort.
+ *   model                → current default + available models
+ *   model pro alto       → save a default ("pro", "flash alto", "bajo", an agy ID...)
+ *   model --reset        → back to agy's own default
+ */
+function handleModel(text, flags) {
+  const backend = resolveBackend();
+  const words = (text || '').split(/\s+/).filter(Boolean);
+  const current = readConfig();
+
+  if (flags.reset || ['reset', 'default', 'predeterminado'].includes(words[0]?.toLowerCase())) {
+    writeConfig({});
+    console.log('✔ Volviste al modelo predeterminado de agy (Flash). Cada comando puede usar otro con --model.');
+    return;
+  }
+
+  if (words.length > 0) {
+    // "alto" alone changes only the effort; otherwise the first word is the model.
+    const [first, second] = words;
+    const model = isEffortWord(first) && words.length === 1 ? current.model : first;
+    const effort = isEffortWord(first) && words.length === 1 ? first : second;
+    let resolved;
+    try {
+      resolved = resolveModelSelection({ model, effort, explicitEffort: Boolean(effort) }, loadCatalog(backend, { refresh: true }));
+    } catch (error) {
+      throw new UsageError(error.message);
+    }
+    writeConfig({ model: model?.toLowerCase(), effort: normalizeEffort(effort) });
+    console.log(`✔ Modelo predeterminado: **${resolved.label || 'predeterminado de agy'}**`);
+    console.log('Se usará en review, adversarial-review, challenge, delegate y task. Un --model en el comando tiene prioridad.');
+    if (process.env.AGY_MODEL || process.env.AGY_EFFORT) {
+      console.log('⚠️ AGY_MODEL/AGY_EFFORT están definidas en el entorno y tienen prioridad sobre esta preferencia.');
+    }
+    return;
+  }
+
+  const catalog = loadCatalog(backend);
+  const aliases = describeAliases(catalog);
+  let active = null;
+  try {
+    active = resolveRunModel({}, backend).label;
+  } catch (error) {
+    active = `⚠️ ${error.message}`;
+  }
+  if (flags.json) {
+    console.log(JSON.stringify({ current: { ...current, label: active }, aliases, models: catalog || [] }, null, 2));
+    return;
+  }
+  const out = ['# Antigravity · modelo', '', `**Ahora:** ${active || 'predeterminado de agy (Flash)'}`, ''];
+  if (!catalog) {
+    out.push('No se pudo leer la lista de modelos (`agy models`). Revisa /antigravity:setup.');
+  } else {
+    out.push('| Nombre | Modelo | Esfuerzo | Para qué |', '| --- | --- | --- | --- |');
+    for (const row of aliases.filter((r) => r.available)) {
+      const efforts = row.efforts.length ? row.efforts.map((e) => EFFORT_LABELS[e]).join(', ') : '—';
+      out.push(`| \`${row.alias}\` | ${row.label} | ${efforts} | ${row.hint} |`);
+    }
+  }
+  out.push(
+    '',
+    'Cambiar el predeterminado: `/antigravity:model pro alto` · solo el esfuerzo: `/antigravity:model bajo` · volver al de agy: `/antigravity:model reset`',
+    'Solo para un comando: `/antigravity:review --model pro` o `--model flash --effort bajo`'
+  );
+  console.log(out.join('\n'));
 }
 
 /**
@@ -616,6 +725,7 @@ COMANDOS:
   result [id]                Salida guardada de un trabajo terminado (el último si no hay id).
   cancel [id]                Cancela un trabajo en curso.
   setup [--json]             Verifica Node, git, Antigravity CLI y la sesión.
+  model [nombre] [esfuerzo]  Muestra o cambia el modelo predeterminado (p. ej. "model pro alto", "model reset").
   login [--reset]            Abre una consola para iniciar sesión con tu cuenta Google AI Pro.
   test                       Prueba de humo de la conexión.
 
@@ -625,13 +735,14 @@ OPCIONES:
   --scope <auto|working-tree|branch>  Qué revisar (auto: cambios locales si hay, si no la rama).
   --resume                   delegate/task/challenge: continúa la última conversación de agy.
   --conversation <id>        Continúa una conversación concreta de agy.
-  --model <modelo>           Modelo a usar (lista: agy models).
-  --effort <low|medium|high|xhigh|max>  Esfuerzo de razonamiento.
+  --model <modelo>           flash, pro, opus, sonnet, gpt o un ID de "agy models".
+  --effort <bajo|medio|alto> Esfuerzo de razonamiento (también low|medium|high|xhigh|max).
+  --file <ruta>              Lee el texto (p. ej. una especificación larga) desde un archivo.
   --engine <antigravity|gemini|codex>   Fuerza el motor.
   -h, --help / -v, --version
 
 VARIABLES DE ENTORNO:
-  AGY_BIN, AGY_ENGINE, AGY_MODEL, AGY_APPROVAL_MODE (auto_edit|yolo), AGY_TIMEOUT_MS (defecto ${DEFAULT_TIMEOUT_MS}),
+  AGY_BIN, AGY_ENGINE, AGY_MODEL, AGY_EFFORT, AGY_CONFIG_DIR, AGY_APPROVAL_MODE (auto_edit|yolo), AGY_TIMEOUT_MS (defecto ${DEFAULT_TIMEOUT_MS}),
   AGY_BACKGROUND_TIMEOUT_MS (defecto ${DEFAULT_BACKGROUND_TIMEOUT_MS}), AGY_STATE_DIR, AGY_DEBUG=1, AGY_AUTH_MODE.
 `);
 }
@@ -664,6 +775,12 @@ function readPipedStdin() {
   });
 }
 
+function readTextFile(file) {
+  const resolved = path.resolve(file);
+  if (!existsSync(resolved)) throw new UsageError(`No existe el archivo indicado en --file: ${resolved}`);
+  return readFileSync(resolved, 'utf-8').replace(/^﻿/, '').trim();
+}
+
 function reportFailure(action, error) {
   const label = action.startsWith('/') ? action : `/antigravity:${action}`;
   console.error(`\n❌ Error en ${label}: ${error.message}\n`);
@@ -689,10 +806,16 @@ async function main(argv) {
   const cwd = process.cwd();
 
   try {
-    if (TEXT_ACTIONS.has(action) && !text) {
+    if ((TEXT_ACTIONS.has(action) || action === 'model') && !text) {
       const piped = splitLeadingFlags(await readPipedStdin());
       flags = { ...flags, ...piped.flags };
       text = piped.text;
+    }
+    if (flags.file && TEXT_ACTIONS.has(action)) {
+      // Long specs travel in a file: big heredocs are fragile in Claude Code's Bash tool.
+      const fromFile = splitLeadingFlags(readTextFile(flags.file));
+      flags = { ...fromFile.flags, ...flags };
+      text = [text, fromFile.text].filter(Boolean).join('\n\n');
     }
     if (flags.engine) setEngineOverride(flags.engine);
 
@@ -727,7 +850,10 @@ async function main(argv) {
         await handleSetup(flags);
         return;
       case 'test':
-        await handleTest();
+        await handleTest(flags);
+        return;
+      case 'model':
+        handleModel(text, flags);
         return;
       case 'login':
         handleLogin(flags);

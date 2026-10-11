@@ -1,6 +1,6 @@
 {
   "name": "antigravity-cc",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Multi-agent pairing tool connecting Claude Code and Antigravity (Gemini) / Codex",
   "author": {
     "name": "Kevin Sarria"

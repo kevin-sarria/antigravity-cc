@@ -144,6 +144,24 @@ describe('end-to-end with a fake agy: reviews, jobs, resume, cancel, setup', () 
     assert.match(res.stdout, /Revisión adversarial/);
   });
 
+  test('task reads a long spec with quotes from --file', () => {
+    const spec = path.join(repo.dir, '..', `spec-${process.pid}.md`);
+    const body = Array.from({ length: 150 }, (_, i) => `- línea ${i}: throw forbidden('No existe'); si \`!ok\``).join('\n');
+    writeFileSync(spec, `--effort high\n# Especificación\n${body}`);
+    try {
+      const out = runWrapper(['task', '--file', spec], { cwd: repo.dir, env });
+      assert.equal(out.code, 0, out.stderr);
+      assert.match(out.stdout, /línea 149: throw forbidden\('No existe'\)/);
+      // Leading options inside the file apply too: "--effort high" picks the Flash High variant.
+      assert.match(out.stdout, /gemini-3\.8-flash-high/);
+      const missing = runWrapper(['task', '--file', `${spec}.nope`], { cwd: repo.dir, env });
+      assert.equal(missing.code, 1);
+      assert.match(missing.stderr, /No existe el archivo indicado en --file/);
+    } finally {
+      rmSync(spec, { force: true });
+    }
+  });
+
   test('background delegate completes, then --resume continues its conversation', () => {
     const started = runWrapper(['delegate'], { cwd: repo.dir, env, input: '--background Crea util.js' });
     assert.equal(started.code, 0, started.stderr);
@@ -180,7 +198,7 @@ describe('end-to-end with a fake agy: reviews, jobs, resume, cancel, setup', () 
   test('invalid flags fail with a clear message', () => {
     const res = runWrapper(['challenge'], { cwd: repo.dir, env, input: '--effort extremo ¿Redis?' });
     assert.equal(res.code, 1);
-    assert.match(res.stderr, /--effort debe ser uno de/);
+    assert.match(res.stderr, /Esfuerzo no válido: "extremo"\. Usa bajo, medio o alto/);
   });
 
   test('worker processes do not linger after completion', () => {

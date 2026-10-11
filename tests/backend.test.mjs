@@ -61,7 +61,7 @@ describe('buildBackendArgs', () => {
 
   test('rejects invalid approval mode and unsafe model names', () => {
     assert.throws(() => withEnv({ AGY_APPROVAL_MODE: 'plan' }, () => buildBackendArgs(gemini, 'write')));
-    assert.throws(() => withEnv({ AGY_MODEL: 'x & calc' }, () => buildBackendArgs(gemini, 'read')));
+    assert.throws(() => buildBackendArgs(gemini, 'read', undefined, { model: 'x & calc' }));
   });
 
   test('codex reads prompt from stdin with the right sandbox', () => {

@@ -10,12 +10,10 @@ disable-model-invocation: true
 Analiza el requerimiento y el repositorio. Escribe una especificación técnica concreta: archivos a crear/modificar, interfaces y esquemas, validaciones y seguridad, casos de prueba y convenciones del proyecto. Si algo ambiguo cambia el diseño, pregunta al usuario.
 
 ## Fase 2: Codificación en disco (Antigravity)
-Usa la herramienta Bash con `timeout: 600000` y pon la especificación completa en el heredoc:
+Guarda la especificación con la herramienta **Write** en un archivo `.md` fuera del repositorio (tu scratchpad o la carpeta temporal del sistema); no la metas en el comando de Bash, porque los textos largos con comillas lo rompen. Luego usa la herramienta Bash con `timeout: 600000`:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" task <<'AGY_EOF'
-<especificación técnica completa>
-AGY_EOF
+node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" task --file "<ruta del archivo>"
 ```
 
 Antigravity edita archivos (`--mode accept-edits`). Por defecto no ejecuta comandos de shell, así que las pruebas las corres tú en la Fase 3.

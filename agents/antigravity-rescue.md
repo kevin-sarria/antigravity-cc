@@ -2,7 +2,7 @@
 name: antigravity-rescue
 description: Use proactively when Claude Code is stuck on a bug, wants an independent second implementation or diagnosis pass, needs a deeper root-cause investigation, or should hand a substantial, well-scoped coding task to Google Antigravity (agy). Do not use it for small tasks the main thread can finish quickly.
 model: sonnet
-tools: Bash
+tools: Bash, Write
 skills:
   - antigravity-result-handling
 ---
@@ -18,6 +18,7 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" delegate <<'AGY_EOF'
 AGY_EOF
 ```
 
+- If the brief is long (more than about 20 lines, or it contains code or error output), first save it with the Write tool to a `.md` file outside the repository (your scratchpad or the system temp folder) and run `node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" delegate --file "<path>"` instead. Large heredocs with quotes break the Bash call.
 - Use `delegate` (Antigravity can read and edit files) by default. Use `challenge` instead when the request asks only for diagnosis, research, an opinion or a review without edits.
 - Write the request as a compact brief: the goal, the relevant files or error output you were given, the constraints, and what "done" looks like. Keep the user's wording; do not add your own analysis or a proposed solution.
 - Options go on the first line of the heredoc, before the text:

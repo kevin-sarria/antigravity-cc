@@ -20,6 +20,19 @@ export const IS_WINDOWS = process.platform === 'win32';
  * - prompt contains "DENYME"  -> empty answer with a denied tool
  * Otherwise it echoes argv and the prompt back as JSON in `response`.
  */
+/** A trimmed copy of a real `agy models` listing. */
+export const FAKE_MODELS = [
+  ['gemini-3.8-flash-high', 'Gemini 3.8 Flash (High)'],
+  ['gemini-3.8-flash-medium', 'Gemini 3.8 Flash (Medium)'],
+  ['gemini-3.8-flash-low', 'Gemini 3.8 Flash (Low)'],
+  ['gemini-3.7-flash-high', 'Gemini 3.7 Flash (High)'],
+  ['gemini-3.1-pro-high', 'Gemini 3.1 Pro (High)'],
+  ['gemini-3.1-pro-low', 'Gemini 3.1 Pro (Low)'],
+  ['claude-sonnet-4-6', 'Claude Sonnet 4.6 (Thinking)'],
+  ['claude-opus-4-6-thinking', 'Claude Opus 4.6 (Thinking)'],
+  ['gpt-oss-120b-medium', 'GPT-OSS 120B (Medium)'],
+];
+
 export function createFakeAgy() {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'agy-fake-'));
   writeFileSync(
@@ -33,6 +46,11 @@ if (argv.includes('--help')) {
   process.exit(0);
 }
 if (argv.includes('--version')) { console.log('9.9.9'); process.exit(0); }
+if (argv[0] === 'models') {
+  console.log('Fetching available models...');
+  for (const [id, label] of ${JSON.stringify(FAKE_MODELS)}) console.log(id + '\\t' + label);
+  process.exit(0);
+}
 let stdin = '';
 process.stdin.on('data', (c) => (stdin += c));
 process.stdin.on('end', () => {

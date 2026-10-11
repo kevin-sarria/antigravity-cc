@@ -11,6 +11,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-11
+
+### Added
+- **`/antigravity:model`**: pick the model and effort from a menu, or in one line (`/antigravity:model pro alto`).
+  The choice is saved as the default for every command in `~/.antigravity-cc/config.json`.
+- Short model names (`flash`, `pro`, `opus`, `sonnet`, `gpt`) that follow the newest version in `agy models`,
+  and efforts in Spanish (`bajo`, `medio`, `alto`). New `AGY_EFFORT` and `AGY_CONFIG_DIR` variables.
+- The receipt line names the model that answered, and `/antigravity:setup` shows the active model.
+- `--file <path>` reads the text for review, adversarial-review, challenge, delegate and task from a file.
+
+### Changed
+- `AGY_MODEL` accepts the short names too.
+
+### Fixed
+- A model combined with an effort it does not offer (e.g. `--model gemini-3.1-pro-high --effort low`) made
+  `agy` silently fall back to Flash. The wrapper now always sends one exact model ID and rejects impossible
+  combinations with the list of valid efforts.
+- `/antigravity:task` failed with `unexpected EOF while looking for matching '` when Claude put a long
+  spec with quotes inside a Bash heredoc. Claude now saves the spec with the Write tool and passes
+  `--file`. The rescue subagent and the delegate skill do the same for long briefs.
+
 ## [1.4.0] - 2026-10-11
 
 ### Added
@@ -94,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: `/antigravity:task`, `review`, `delegate`, `challenge`, `status` and `test`
   commands, matching skills, Claude Code marketplace manifest and security audit tests.
 
-[Unreleased]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.0.0...v1.2.0

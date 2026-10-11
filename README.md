@@ -172,6 +172,7 @@ node /path/to/antigravity-cc/bin/agy-wrapper.mjs --help
 | Command | What it does | Sub-agent permissions |
 | :--- | :--- | :--- |
 | `/antigravity:setup` | Checks Node, git, Antigravity CLI and your session; offers to install `agy` if it is missing. | — |
+| `/antigravity:model` | Picks the model and effort from a menu (Flash, Pro, Opus...) and saves it as your default. | — |
 | `/antigravity:review` | Structured review of your uncommitted changes or your branch: verdict, findings by severity with `file:line`. | Read-only |
 | `/antigravity:adversarial-review` | Review that tries to **break** the change and questions the design (auth, data loss, races, rollback). | Read-only |
 | `/antigravity:challenge <idea>` | Skeptical architecture critique of a proposal or decision. | Read-only |
@@ -197,8 +198,9 @@ Write options before the text; they work in any order:
 | `--scope auto\|working-tree\|branch` | review, adversarial-review | `auto` (default) reviews uncommitted changes when there are any, otherwise the branch against the default branch. |
 | `--resume` | delegate, task, challenge | Continues the last Antigravity conversation of that kind in this repository. Send only the new instruction. |
 | `--conversation <id>` | delegate, task, challenge | Continues a specific `agy` conversation. |
-| `--model <name>` | all runs | Model for this run (`agy models` lists them). |
-| `--effort <low\|medium\|high\|xhigh\|max>` | all runs | Reasoning effort for this run. |
+| `--model <name>` | all runs | Model for this run: `flash`, `pro`, `opus`, `sonnet`, `gpt` or an ID from `agy models`. |
+| `--effort <bajo\|medio\|alto>` | all runs | Reasoning effort for this run (`low\|medium\|high` work too). |
+| `--file <path>` | review, adversarial-review, challenge, delegate, task | Reads the text from a file. `task` and the rescue subagent use it for long specs, because big heredocs with quotes can break Claude Code's Bash tool. |
 
 > [!IMPORTANT]
 > In headless mode, `agy` auto-denies every tool that needs permission **and ends the turn without an answer**. The wrapper handles it like this:
@@ -207,6 +209,23 @@ Write options before the text; they work in any order:
 > - Every prompt starts with tool rules (no terminal commands, stay inside the project folder), and a turn cut short by a denied tool is reported as `DENIED: ...`.
 >
 > Set `AGY_APPROVAL_MODE=yolo` to let `delegate`/`task` run commands too (`--dangerously-skip-permissions`; it approves everything).
+
+### Choosing the model
+
+By default `agy` uses its own default model, Gemini Flash. To change it, run `/antigravity:model` and pick from the menu, or write it in one line:
+
+```text
+/antigravity:model                 # menu with the models your account offers
+/antigravity:model pro alto        # default for every command: Gemini Pro, high effort
+/antigravity:model bajo            # change only the effort
+/antigravity:model reset           # back to agy's default
+
+/antigravity:adversarial-review --model pro     # only this run
+```
+
+Short names always point to the newest version your account offers (`flash`, `pro`, `opus`, `sonnet`, `gpt`). In `agy` the effort is part of the model ID: Gemini Pro offers only *bajo* and *alto*, and Claude models offer none. The wrapper checks the choice against `agy models` and explains what is available, because `agy` would otherwise silently fall back to Flash. The receipt line names the model that answered.
+
+The preference is saved in `~/.antigravity-cc/config.json` (only the model name, no credentials). Priority: `--model`/`--effort` in the command > `AGY_MODEL`/`AGY_EFFORT` > `/antigravity:model`.
 
 ### Reviews
 
@@ -365,7 +384,8 @@ These are read from the environment of the process that runs the wrapper (see `.
 ```bash
 AGY_BIN=/home/me/.local/bin/agy   # custom binary (agy or gemini, auto-detected)
 AGY_ENGINE=antigravity            # 'antigravity' (default), 'gemini' (legacy, enterprise only) or 'codex'
-AGY_MODEL=                        # model override (list them with `agy models`)
+AGY_MODEL=                        # default model: flash, pro, opus... (easier: /antigravity:model)
+AGY_EFFORT=                       # default effort: bajo, medio, alto
 AGY_APPROVAL_MODE=auto_edit       # delegate/task: 'auto_edit' (default) or 'yolo' (also shell commands)
 AGY_TIMEOUT_MS=570000             # max time per foreground run
 AGY_BACKGROUND_TIMEOUT_MS=1800000 # max time per background job
@@ -425,7 +445,7 @@ Every successful `agy` run ends with a receipt line that only `agy` can produce:
 ### 3. `429` / quota exceeded
 
 - **Root Cause:** The account hit its usage limits, or a free API key is being used (`AGY_AUTH_MODE=apikey`).
-- **Resolution:** Remove `AGY_AUTH_MODE=apikey` so your Google AI Pro session is used. Otherwise wait for the quota to reset or pick another model (`agy models`, `AGY_MODEL=...`).
+- **Resolution:** Remove `AGY_AUTH_MODE=apikey` so your Google AI Pro session is used. Otherwise wait for the quota to reset or pick another model with `/antigravity:model`.
 
 ### 4. `TIMEOUT: ...`
 
