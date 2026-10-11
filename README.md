@@ -121,8 +121,9 @@ Next, open **Claude Code** in your terminal and register the plugin:
 # (On Windows, use your absolute path, e.g.:)
 # /plugin marketplace add C:\Users\<username>\Documents\proyectos\antigravity-cc
 
-# 2. Install the plugin
-/plugin install antigravity@local
+# 2. Install the plugin from the marketplace
+/plugin install antigravity@antigravity-marketplace
+# (or simply: /plugin install antigravity)
 
 # 3. Reload active plugins
 /reload-plugins
@@ -383,12 +384,14 @@ The security audit recursively scans every file in the project against known sec
 ```text
 antigravity-cc/
 ├── .claude-plugin/
+│   ├── marketplace.json        # Claude Code local marketplace catalog
 │   └── plugin.json             # Claude Code slash commands manifest
 ├── .codex-plugin/
 │   └── plugin.json             # Manifest for Codex interoperability
 ├── bin/
 │   └── agy-wrapper.mjs         # Multi-engine CLI bridge & orchestrator
 ├── skills/
+│   ├── antigravity-task/       # Autonomous dual-agent round-trip skill
 │   ├── antigravity-review/     # Dual-agent code review skill
 │   ├── antigravity-delegate/   # Deep task & scaffolding delegation skill
 │   └── antigravity-challenge/  # Adversarial architecture review skill
@@ -398,7 +401,7 @@ antigravity-cc/
 ├── .env.example                # Safe environment template (placeholders only)
 ├── .gitignore                  # Airtight exclusion rules for git
 ├── CONTRIBUTING.md             # Guidelines for open-source contributors
-├── LICENSE                     # MIT Open Source License
+├── LICENSE                     # Community Open Source (Non-Commercial) License
 ├── package.json                # Zero-dependency configuration & test scripts
 └── README.md                   # Complete documentation
 ```

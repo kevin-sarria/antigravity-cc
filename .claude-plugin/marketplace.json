@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "antigravity-marketplace",
+  "description": "Marketplace for Google Antigravity & Claude Code dual-agent integration plugins",
+  "owner": {
+    "name": "Kevin Sarria"
+  },
+  "plugins": [
+    {
+      "name": "antigravity",
+      "description": "Orquesta Google Antigravity CLI (Gemini) y Codex como sub-agentes ejecutores dentro de Claude Code",
+      "version": "1.0.0",
+      "category": "development",
+      "source": "./",
+      "author": {
+        "name": "Kevin Sarria"
+      },
+      "license": "Custom (Community Open Source - Non-Commercial / No Resale)"
+    }
+  ]
+}
