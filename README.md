@@ -232,6 +232,52 @@ Validates that your CLI backend is connected, authenticated, and answering promp
 
 ---
 
+## Dual-Agent Round-Trip Workflow (The "Ping-Pong" Pattern)
+
+One of the most powerful workflows enabled by `antigravity-cc` is the **Architect $\rightarrow$ Builder $\rightarrow$ Auditor** round-trip:
+
+```
+[User Request]
+       |
+       v
+1. CLAUDE (Architect)
+   - Breaks down task into strict specifications, contracts & file paths.
+       |
+       v  (/antigravity:delegate <specification>)
+2. GEMINI / ANTIGRAVITY (Builder)
+   - Writes all files, models, boilerplate & tests directly on disk.
+   - Returns a concise digest (files modified, test results).
+       |
+       v  (Digest returned to Claude)
+3. CLAUDE (Auditor & Refiner)
+   - Reads modified files, executes local test suite (`npm test`, `pytest`, etc.).
+   - Refines edge cases, fixes any compiler/linter warnings.
+       |
+       v
+[Complete, Verified Codebase]
+```
+
+### The "All-in-One" Prompt Template
+
+You can trigger this entire automated pipeline in a single instruction inside Claude Code. Just paste this:
+
+> *"Claude, plan and architect the full implementation for **[describe your feature here]** (interfaces, folder structure, validation rules). Once your specification is ready, use `/antigravity:delegate` to have Gemini generate all files and implementations on disk. When Gemini returns, inspect the generated code, run our test suite, and apply any necessary fixes or polish."*
+
+### Automating via `CLAUDE.md`
+
+To make this the default behavior in any repository, add the following snippet to your project's `CLAUDE.md`:
+
+```markdown
+## Sub-Agent Delegation Rules
+When asked to implement new modules or large features:
+1. First produce a concise implementation plan with interfaces and contracts.
+2. Delegate the heavy file creation and boilerplate to Gemini via `/antigravity:delegate "<plan>"`.
+3. Inspect Gemini's generated files and run tests.
+4. Apply any required fixes and show the final summary.
+```
+
+---
+
 ## Engine & Model Configuration
 
 `antigravity-cc` auto-detects your backend environment with the following priority order:
