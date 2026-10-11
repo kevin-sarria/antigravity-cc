@@ -385,7 +385,14 @@ The security audit recursively scans every file in the project against known sec
 antigravity-cc/
 ├── .claude-plugin/
 │   ├── marketplace.json        # Claude Code local marketplace catalog
-│   └── plugin.json             # Claude Code slash commands manifest
+│   └── plugin.json             # Plugin metadata manifest
+├── commands/                   # Claude Code slash commands
+│   ├── task.md                 # /antigravity:task
+│   ├── review.md               # /antigravity:review
+│   ├── delegate.md             # /antigravity:delegate
+│   ├── challenge.md            # /antigravity:challenge
+│   ├── status.md               # /antigravity:status
+│   └── test.md                 # /antigravity:test
 ├── .codex-plugin/
 │   └── plugin.json             # Manifest for Codex interoperability
 ├── bin/
