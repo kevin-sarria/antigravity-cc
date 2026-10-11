@@ -25,8 +25,8 @@
     "code-review",
     "plugin"
   ],
-  "author": "Antigravity CC Team",
-  "license": "MIT",
+  "author": "Kevin Sarria",
+  "license": "SEE LICENSE IN LICENSE",
   "engines": {
     "node": ">=18.0.0"
   }

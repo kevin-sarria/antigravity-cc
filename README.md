@@ -1,12 +1,16 @@
 # Antigravity Plugin for Claude Code (`agy-cc`)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Community Open Source](https://img.shields.io/badge/License-Community%20Open%20Source%20(Non--Commercial)-orange.svg)](LICENSE)
+[![Author: Kevin Sarria](https://img.shields.io/badge/Author-Kevin%20Sarria-blue.svg)](#intellectual-property--license)
+[![Generated with: AI](https://img.shields.io/badge/Built%20with-AI%20Assistance-purple.svg)](#intellectual-property--license)
 [![Node: >=18](https://img.shields.io/badge/Node-%3E%3D18-green.svg)](https://nodejs.org/)
 [![Multi-Agent](https://img.shields.io/badge/Architecture-Dual--Agent%20Pairing-blue.svg)](#architecture)
 [![Dependencies](https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Node)-success.svg)](package.json)
 [![Security: Audited](https://img.shields.io/badge/Security-Credential%20Clean-brightgreen.svg)](#security--privacy)
 
 > **Harmonious multi-agent pairing:** Connect **Claude Code** with **Google Antigravity CLI (`agy`)**, **Gemini**, and **Codex** as deep execution sub-agents.
+>
+> **Author & Intellectual Property:** Conceived, architected, and owned by **Kevin Sarria**. Generated with AI assistance. Open source by and for the community (**Strictly Non-Commercial / Not for Sale**).
 
 Claude Code leads project direction, interactive architecture decisions, and high-level reasoning. Meanwhile, Antigravity acts as a dedicated worker sub-agent executing independent code reviews, massive scaffolding, and adversarial stress-testing directly against your local filesystem—**shielding Claude's context window from token exhaustion**.
 
@@ -414,6 +418,13 @@ Contributions are welcome! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for 
 
 ---
 
-## License
+## Intellectual Property & License
 
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+**Copyright (c) 2026 Kevin Sarria. All rights reserved.**
+
+- **Intellectual Authorship:** This software, its architecture, and integration wrappers are the intellectual property of **Kevin Sarria**.
+- **AI-Assisted Creation:** This plugin was conceived, designed, and generated with the assistance of Artificial Intelligence (Claude Code, Google Antigravity, and Gemini).
+- **Open Source for the Community:** Free for personal, academic, educational, community use, study, and modification.
+- **Strictly Non-Commercial / No-Resale Clause:** This software is **NOT for sale** and **CANNOT be sold, resold, leased, or commercialized to third parties**. It is open source created by and for the community.
+
+For full terms and legal text, please refer to [`LICENSE`](LICENSE).

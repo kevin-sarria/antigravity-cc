@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Delega revisiones de código, scaffolding y tareas complejas a Google Antigravity (Gemini) o Codex",
   "author": {
-    "name": "Antigravity CC Team"
+    "name": "Kevin Sarria"
   },
-  "license": "MIT",
+  "license": "Custom (Community Open Source - Non-Commercial / No Resale)",
   "commands": [
     {
       "name": "task",

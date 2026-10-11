@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Multi-agent pairing tool connecting Claude Code and Antigravity (Gemini) / Codex",
   "author": {
-    "name": "Antigravity CC Team"
+    "name": "Kevin Sarria"
   },
-  "license": "MIT",
+  "license": "Custom (Community Open Source - Non-Commercial / No Resale)",
   "skills": "./skills/",
   "interface": {
     "displayName": "Antigravity CC",

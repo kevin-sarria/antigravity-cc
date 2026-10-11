@@ -1,21 +1,63 @@
-MIT License
+COMMUNITY OPEN SOURCE LICENSE (NON-COMMERCIAL / NO-RESALE)
+Version 1.0 - 2026
 
-Copyright (c) 2026 Antigravity CC Team
+Copyright (c) 2026 Kevin Sarria. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+===============================================================================
+1. INTELLECTUAL PROPERTY & AUTHORSHIP
+===============================================================================
+This software, its plugins, wrappers, and associated documentation are the
+intellectual property of the Author (Kevin Sarria). Full intellectual ownership
+and moral rights are retained by the Author.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+===============================================================================
+2. ARTIFICIAL INTELLIGENCE DISCLOSURE
+===============================================================================
+Notice: This software, its architectural integrations, wrappers, and skills
+were conceived, designed, and generated with the assistance of Artificial
+Intelligence (AI) coding models (Claude Code, Google Antigravity, and Gemini).
 
+===============================================================================
+3. PERMITTED USES (OPEN SOURCE FOR THE COMMUNITY)
+===============================================================================
+Permission is hereby granted, free of charge, to any person or organization
+obtaining a copy of this software and associated documentation files (the "Software"),
+to:
+  a. Use, run, inspect, and execute the Software freely for personal, educational,
+     research, or internal community development purposes.
+  b. Modify, adapt, translate, enhance, and create derivative works of the Software.
+  c. Distribute and share copies of the Software and modifications thereof,
+     provided that this complete License notice, attribution of authorship to
+     Kevin Sarria, and the AI generation disclosure remain intact.
+
+===============================================================================
+4. COMMERCIAL PROHIBITION & NO-RESALE CLAUSE (STRICT)
+===============================================================================
+  a. NOT FOR SALE: This Software is open-source by and for the community.
+     It is not for sale under any circumstances.
+  b. NO RESALE TO THIRD PARTIES: You may NOT sell, resell, rent, lease, sub-license,
+     bundle into proprietary paid offerings, or monetize this Software or any
+     derivative work derived from it as a paid commercial product.
+  c. Charging third parties any monetary fee or royalty for access, download,
+     or distribution of this Software is strictly prohibited.
+
+===============================================================================
+5. DISCLAIMER OF WARRANTY
+===============================================================================
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+===============================================================================
+RESUMEN EN ESPAÑOL / SPANISH SUMMARY:
+===============================================================================
+- Propiedad Intelectual: Kevin Sarria es el autor y propietario intelectual.
+- Generado con IA: Creado y estructurado con asistencia de Inteligencia Artificial.
+- Código Abierto: Libre y gratuito para su uso, estudio, mejora y bifurcación.
+- Prohibida la Venta: Este plugin NO está a la venta. Queda terminantemente prohibida
+  su venta, reventa o comercialización a terceros con fines de lucro.
+  Es código abierto por y para la comunidad.
