@@ -145,6 +145,7 @@ node bin/agy-wrapper.mjs review
 
 | Command | Description | Engine |
 | :--- | :--- | :--- |
+| `/antigravity:task <prompt>` | Autonomous round-trip pipeline: Claude plans $\rightarrow$ Gemini builds in disk $\rightarrow$ Claude audits & fixes. | Gemini + Claude Code |
 | `/antigravity:review` | Performs an independent audit on local uncommitted git diffs. | Gemini / Antigravity / Codex |
 | `/antigravity:delegate <task>` | Offloads repetitive scaffolding, test generation, or refactoring. | Gemini / Antigravity / Codex |
 | `/antigravity:challenge <idea>` | Evaluates technical solutions against edge cases and scalability bottlenecks. | Gemini / Antigravity / Codex |
@@ -153,7 +154,22 @@ node bin/agy-wrapper.mjs review
 
 ---
 
-### 1. `/antigravity:review`
+### 1. `/antigravity:task <feature-description>`
+
+Orchestrates the entire **Round-Trip Dual-Agent cycle** in a single command. 
+
+```text
+/antigravity:task "Create a bulk email module with CSV/Excel recipient upload, rich-text editor, and role permissions"
+```
+
+**How it works under the hood:**
+1. **Claude Code** structures the technical blueprint, interface contracts, and validation rules.
+2. **Gemini / Antigravity** writes the files directly to your disk, creates automated tests, and returns a concise digest.
+3. **Claude Code** receives a handoff signal, inspects the created files, runs your test suite (`npm test`), fixes any edge cases or type mismatches, and presents the final verified result.
+
+---
+
+### 2. `/antigravity:review`
 
 Audits your local changes (`git diff HEAD`, staged changes, or untracked modifications) before committing.
 

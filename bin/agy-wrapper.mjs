@@ -325,6 +325,61 @@ async function handleDelegate(task) {
 }
 
 /**
+ * Action: task
+ * Orquesta el flujo autónomo completo (Round-Trip / Ping-Pong):
+ * 1. Envía el requerimiento a Gemini para que codifique en disco y genere tests.
+ * 2. Emite la señal estructurada para que Claude Code audite, ejecute pruebas y corrija.
+ */
+async function handleTask(task) {
+  if (!task) {
+    console.error('❌ Especifica la descripción de la tarea a ejecutar.');
+    console.error('Ejemplo: /antigravity:task "Crear módulo de multi-envío de correos con validación de Excel..."');
+    process.exit(1);
+  }
+
+  console.log('\n🛰️ [Antigravity Task Orchestrator] Iniciando pipeline dual-agent...');
+  console.log(`📋 Requerimiento a procesar: "${task}"\n`);
+  console.log('⚡ Fase 1: Delegando codificación, creación de archivos y tests a Gemini/Antigravity...');
+
+  const prompt = [
+    'Eres el sub-agente ejecutor de desarrollo (Gemini/Antigravity) trabajando en equipo con Claude Code.',
+    'REQUERIMIENTO A IMPLEMENTAR:',
+    `"${task}"`,
+    '',
+    'INSTRUCCIONES DE EJECUCIÓN DIRECTA EN EL PROYECTO:',
+    '1. Analiza la arquitectura del repositorio actual y los estándares del proyecto.',
+    '2. Crea y modifica directamente en el sistema de archivos todos los módulos, componentes, tipos, servicios y pruebas necesarias.',
+    '3. Asegúrate de incluir el manejo de errores, validaciones de seguridad y tipado riguroso.',
+    '4. Ejecuta o crea pruebas automatizadas locales para validar la funcionalidad.',
+    '5. DEVUELVE ÚNICAMENTE un informe estructurado con:',
+    '   - Lista detallada de archivos creados y modificados.',
+    '   - Resumen técnico de la implementación realizada.',
+    '   - Pruebas añadidas y estado de ejecución.',
+    '   - Puntos de atención, decisiones técnicas o posibles edge cases para auditoría.'
+  ].join('\n');
+
+  try {
+    const output = await runBackend(prompt);
+    console.log('\n======================================================');
+    console.log('       FASE 1 COMPLETADA: EJECUCIÓN POR GEMINI');
+    console.log('======================================================\n');
+    console.log(output);
+    console.log('\n======================================================');
+    console.log('  🛰️ SEÑAL PARA CLAUDE CODE - FASE 2: AUDITORÍA Y CONTROL');
+    console.log('======================================================');
+    console.log('INSTRUCCIONES PARA CLAUDE CODE:');
+    console.log('1. Revisa e inspecciona los archivos modificados/creados por Gemini en el disco.');
+    console.log('2. Ejecuta la suite de pruebas del proyecto (ej: npm test, pytest, etc.) para verificar la integridad.');
+    console.log('3. Si detectas inconsistencias, bugs, edge cases o advertencias del linter, corrígelos directamente.');
+    console.log('4. Entrega al usuario el reporte final consolidado de la tarea terminada para su retroalimentación.');
+    console.log('======================================================\n');
+  } catch (error) {
+    console.error(`❌ Error en /antigravity:task: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+/**
  * Action: challenge
  */
 async function handleChallenge(question) {
@@ -406,6 +461,7 @@ USO:
   node bin/agy-wrapper.mjs <comando> [argumentos] [opciones]
 
 COMANDOS:
+  task <tarea>        Ejecuta el ciclo completo: codificación en disco por Gemini + auditoría para Claude.
   review              Analiza el git diff local y emite reporte de seguridad y bugs.
   delegate <tarea>    Delega scaffolding, pruebas o refactors pesados al sub-agente.
   challenge <idea>    Somete una propuesta o diseño a crítica arquitectónica rigurosa.
@@ -426,6 +482,9 @@ VARIABLES DE ENTORNO:
 
 async function main() {
   switch (action) {
+    case 'task':
+      await handleTask(rawUserPrompt);
+      break;
     case 'review':
       await handleReview();
       break;

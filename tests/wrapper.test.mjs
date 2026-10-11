@@ -16,6 +16,7 @@ describe('Antigravity CC Wrapper Functional Tests', () => {
   test('should display help menu with --help flag', () => {
     const output = execSync(`node "${wrapperPath}" --help`, { encoding: 'utf-8' });
     assert.match(output, /USO:/);
+    assert.match(output, /task/);
     assert.match(output, /review/);
     assert.match(output, /delegate/);
     assert.match(output, /challenge/);
@@ -27,6 +28,18 @@ describe('Antigravity CC Wrapper Functional Tests', () => {
     assert.match(output, /ESTADO DE INTEGRACI/);
     assert.match(output, /Plataforma/);
     assert.match(output, /Node\.js/);
+  });
+
+  test('should require a description for task command', () => {
+    let errorCaught = false;
+    try {
+      execSync(`node "${wrapperPath}" task`, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (err) {
+      errorCaught = true;
+      const combined = (err.stdout || '') + (err.stderr || '');
+      assert.match(combined, /Especifica la descripci/);
+    }
+    assert.ok(errorCaught, 'Expected process to exit with error when task description is missing');
   });
 
   test('should require a task parameter for delegate command', () => {
