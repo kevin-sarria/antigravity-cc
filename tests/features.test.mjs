@@ -1,11 +1,11 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import { parseArgv, splitLeadingFlags } from '../lib/args.mjs';
-import { collectReviewContext, resolveReviewTarget } from '../lib/git.mjs';
+import { collectReviewContext, repoSubfolder, resolveReviewTarget } from '../lib/git.mjs';
 import { isPidAlive } from '../lib/jobs.mjs';
 import { parseReviewResult, renderReview } from '../lib/review.mjs';
 import { createFakeAgy, createRepo, runWrapper } from './helpers.mjs';
@@ -66,6 +66,19 @@ describe('review target selection', () => {
     assert.throws(() => resolveReviewTarget(repo.dir, { base: '--output=/tmp/x' }), /no válida/);
     assert.throws(() => resolveReviewTarget(repo.dir, { base: 'main; rm -rf /' }), /no válida/);
     assert.throws(() => resolveReviewTarget(repo.dir, { scope: 'staged' }), /--scope/);
+  });
+
+  test('repoSubfolder reports prefix inside git and empty string at root or outside', () => {
+    assert.equal(repoSubfolder(repo.dir), '');
+    const sub = path.join(repo.dir, 'backend', 'src');
+    mkdirSync(sub, { recursive: true });
+    assert.equal(repoSubfolder(sub), 'backend/src');
+    const nonGit = mkdtempSync(path.join(os.tmpdir(), 'agy-nogit-'));
+    try {
+      assert.equal(repoSubfolder(nonGit), '');
+    } finally {
+      rmSync(nonGit, { recursive: true, force: true });
+    }
   });
 });
 
@@ -142,6 +155,17 @@ describe('end-to-end with a fake agy: reviews, jobs, resume, cancel, setup', () 
     const res = runWrapper(['adversarial-review'], { cwd: repo.dir, env, input: 'rollback' });
     assert.equal(res.code, 0, res.stderr);
     assert.match(res.stdout, /Revisión adversarial/);
+  });
+
+  test('runs agy at the repository root when started from a subfolder', () => {
+    const sub = path.join(repo.dir, 'backend', 'src');
+    mkdirSync(sub, { recursive: true });
+    const out = runWrapper(['delegate'], { cwd: sub, env, input: 'Arregla el frontend' });
+    assert.equal(out.code, 0, out.stderr);
+    const report = JSON.parse(/\{"args".*\}/.exec(out.stdout)[0]);
+    assert.equal(realpathSync.native(report.cwd).toLowerCase(), realpathSync.native(repo.dir).toLowerCase());
+    assert.match(report.content, /subcarpeta "backend\/src"/);
+    assert.ok(!report.content.includes(`${path.sep}backend${path.sep}src\n`), 'the workspace rule names the root');
   });
 
   test('task reads a long spec with quotes from --file', () => {

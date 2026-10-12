@@ -74,7 +74,7 @@ process.stdin.on('end', () => {
     }, prompt: content });
     return;
   }
-  emit({ status: 'SUCCESS', response: JSON.stringify({ args: argv, content, hasKey: Boolean(process.env.GEMINI_API_KEY) }) });
+  emit({ status: 'SUCCESS', response: JSON.stringify({ args: argv, content, cwd: process.cwd(), hasKey: Boolean(process.env.GEMINI_API_KEY) }) });
 });
 `
   );

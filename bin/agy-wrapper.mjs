@@ -29,7 +29,7 @@ import {
   setEngineOverride,
   validateRunOptions,
 } from '../lib/backend.mjs';
-import { collectReviewContext, isGitRepo, resolveReviewTarget } from '../lib/git.mjs';
+import { collectReviewContext, isGitRepo, repoSubfolder, resolveReviewTarget } from '../lib/git.mjs';
 import {
   EFFORT_LABELS,
   describeAliases,
@@ -47,6 +47,7 @@ import {
   isActive,
   lastConversationId,
   listJobs,
+  workspaceRoot,
   readJobInput,
   readJobOutput,
   updateJob,
@@ -233,6 +234,12 @@ export function prepareAction(kind, text, flags, cwd = process.cwd()) {
   else throw new UsageError(`Acción desconocida: ${kind}`);
   if (prepared.nothingToDo) return prepared;
 
+  const subfolder = flags.launchSubfolder || '';
+  if (subfolder) {
+    prepared.prompt =
+      `Nota: Claude Code estaba en la subcarpeta "${subfolder}" del proyecto; ` +
+      `las rutas relativas del texto pueden referirse a ella. Tu espacio de trabajo es el repositorio completo.\n\n${prepared.prompt}`;
+  }
   const selection = resolveSelection(flags);
   const { model, effort, conversationId } = validateRunOptions({
     model: selection.model,
@@ -803,7 +810,13 @@ async function main(argv) {
   }
   const { action } = parsed;
   let { flags, text } = parsed;
-  const cwd = process.cwd();
+  // agy only reads and writes inside its workspace folder. Started from a subfolder (e.g. after
+  // `cd backend`), it would treat the rest of the repository as outside the project and deny it.
+  const launchDir = process.cwd();
+  const launchSubfolder = repoSubfolder(launchDir);
+  const cwd = workspaceRoot(launchDir);
+  if (cwd !== path.resolve(launchDir)) process.chdir(cwd);
+  flags = { ...flags, launchDir, launchSubfolder };
 
   try {
     if ((TEXT_ACTIONS.has(action) || action === 'model') && !text) {
@@ -813,7 +826,7 @@ async function main(argv) {
     }
     if (flags.file && TEXT_ACTIONS.has(action)) {
       // Long specs travel in a file: big heredocs are fragile in Claude Code's Bash tool.
-      const fromFile = splitLeadingFlags(readTextFile(flags.file));
+      const fromFile = splitLeadingFlags(readTextFile(path.resolve(launchDir, flags.file)));
       flags = { ...fromFile.flags, ...flags };
       text = [text, fromFile.text].filter(Boolean).join('\n\n');
     }

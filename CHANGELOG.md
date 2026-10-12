@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-10-12
+
+### Fixed
+- Started from a subfolder (e.g. after `cd backend`), the wrapper gave `agy` that subfolder as its
+  workspace, so reading any other part of the repository ended in `DENIED: ... (ViewFile)`. `agy` now
+  always runs at the repository root, and the prompt says which subfolder Claude was in.
+
 ## [1.5.1] - 2026-10-11
 
 ### Changed
@@ -124,7 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: `/antigravity:task`, `review`, `delegate`, `challenge`, `status` and `test`
   commands, matching skills, Claude Code marketplace manifest and security audit tests.
 
-[Unreleased]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.2...HEAD
+[1.5.2]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.3.0...v1.4.0
