@@ -19,8 +19,8 @@ Please maintain a polite, welcoming, and constructive environment for all contri
 
 2. **Clone & Setup:**
    ```bash
-   git clone https://github.com/kevin-sarria/antigravity-cc.git
-   cd antigravity-cc
+   git clone https://github.com/kevin-sarria/antigravity-plugin-cc.git
+   cd antigravity-plugin-cc
    npm install
    ```
 

@@ -132,7 +132,7 @@ By default the wrapper removes `GEMINI_API_KEY` / `GOOGLE_API_KEY` from the sub-
 In Claude Code:
 
 ```text
-/plugin marketplace add kevin-sarria/antigravity-cc
+/plugin marketplace add kevin-sarria/antigravity-plugin-cc
 /plugin install antigravity@antigravity-marketplace
 /reload-plugins
 /antigravity:setup
@@ -143,13 +143,13 @@ In Claude Code:
 To work on the plugin itself, clone it and register the local folder instead:
 
 ```bash
-git clone https://github.com/kevin-sarria/antigravity-cc.git
-cd antigravity-cc
+git clone https://github.com/kevin-sarria/antigravity-plugin-cc.git
+cd antigravity-plugin-cc
 npm test
 ```
 
 ```text
-/plugin marketplace add C:Users<username>path	oantigravity-cc
+/plugin marketplace add C:\Users\<username>\path\to\antigravity-plugin-cc
 /plugin install antigravity@antigravity-marketplace
 ```
 
@@ -158,11 +158,11 @@ npm test
 Every command also works from a normal terminal, inside the repository you want to work on:
 
 ```bash
-node /path/to/antigravity-cc/bin/agy-wrapper.mjs setup
-node /path/to/antigravity-cc/bin/agy-wrapper.mjs review --base main
-echo "--background revisa la auth" | node /path/to/antigravity-cc/bin/agy-wrapper.mjs adversarial-review
-node /path/to/antigravity-cc/bin/agy-wrapper.mjs status
-node /path/to/antigravity-cc/bin/agy-wrapper.mjs --help
+node /path/to/antigravity-plugin-cc/bin/agy-wrapper.mjs setup
+node /path/to/antigravity-plugin-cc/bin/agy-wrapper.mjs review --base main
+echo "--background revisa la auth" | node /path/to/antigravity-plugin-cc/bin/agy-wrapper.mjs adversarial-review
+node /path/to/antigravity-plugin-cc/bin/agy-wrapper.mjs status
+node /path/to/antigravity-plugin-cc/bin/agy-wrapper.mjs --help
 ```
 
 ---

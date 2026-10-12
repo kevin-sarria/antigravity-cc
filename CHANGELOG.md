@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-11
+
+### Changed
+- The repository moved to `kevin-sarria/antigravity-plugin-cc`. Install with
+  `/plugin marketplace add kevin-sarria/antigravity-plugin-cc`; the old name still redirects.
+
+### Fixed
+- README: the local-install example path had lost its backslashes.
+
 ## [1.5.0] - 2026-10-11
 
 ### Added
@@ -115,9 +124,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: `/antigravity:task`, `review`, `delegate`, `challenge`, `status` and `test`
   commands, matching skills, Claude Code marketplace manifest and security audit tests.
 
-[Unreleased]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.5.0...HEAD
-[1.5.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.4.0...v1.5.0
-[1.4.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.3.0...v1.4.0
-[1.3.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/kevin-sarria/antigravity-cc/compare/v1.0.0...v1.2.0
-[1.0.0]: https://github.com/kevin-sarria/antigravity-cc/releases/tag/v1.0.0
+[Unreleased]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.0.0...v1.2.0
+[1.0.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/releases/tag/v1.0.0

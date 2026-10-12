@@ -16,7 +16,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
-const REPO_URL = 'https://github.com/kevin-sarria/antigravity-cc';
+const REPO_URL = 'https://github.com/kevin-sarria/antigravity-plugin-cc';
 const PLUGIN_NAME = 'antigravity';
 
 const JSON_FILES = {
