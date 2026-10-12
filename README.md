@@ -27,6 +27,7 @@ Claude Code leads project direction, interactive architecture decisions, and hig
   - [2. Run as Standalone CLI](#2-run-as-standalone-cli)
 - [Command Reference](#command-reference)
   - [Options](#options)
+  - [Choosing the model](#choosing-the-model)
   - [Reviews](#reviews)
   - [Background jobs](#background-jobs)
   - [Continuing a conversation](#continuing-a-conversation)
@@ -120,10 +121,10 @@ Before using `antigravity-cc`, ensure you have:
 Antigravity CLI uses your Google account, the same one you use in the Antigravity app. If you already use Antigravity on this machine, `agy` is usually signed in already. Check it with:
 
 ```text
-/antigravity:test
+/antigravity:setup
 ```
 
-If it isn't signed in, run `/antigravity:login`. Claude Code's Bash tool is not interactive, so this opens a **new console window** running `agy`. Follow the sign-in link there with **the account that holds the Google AI Pro subscription**, close the window, and run `/antigravity:test` again. (Standalone: `node bin/agy-wrapper.mjs login`.)
+If it isn't signed in, run `/antigravity:login`. Claude Code's Bash tool is not interactive, so this opens a **new console window** running `agy`. Follow the sign-in link there with **the account that holds the Google AI Pro subscription**, close the window, and run `/antigravity:setup` again. (Standalone: `node bin/agy-wrapper.mjs login`.)
 
 By default the wrapper removes `GEMINI_API_KEY` / `GOOGLE_API_KEY` from the sub-agent environment, so a stray free-tier API key never replaces your account session. Set `AGY_AUTH_MODE=apikey` only if you really want to pass those keys through.
 
@@ -255,7 +256,7 @@ Se concatena req.query.name en la sentencia DELETE...
 - Reemplazar la concatenación por consultas parametrizadas.
 
 ---
-🛰️ Respondido por Antigravity CLI (agy) · conversación 95301bf1-... · 64.1 s · 70.3k tokens · carpeta: ...
+🛰️ Respondido por Antigravity CLI (agy) · conversación 95301bf1-... · 64.1 s · 70.3k tokens · modelo Gemini 3.1 Pro (High) · carpeta: ...
 ```
 
 Reviews never change code. After a review, Claude shows the findings and **asks which ones to fix** instead of fixing them on its own.
@@ -293,8 +294,10 @@ If a background worker disappears (closed terminal, reboot), `status` marks the 
 
 Orchestrates the round-trip in one command:
 1. **Claude** turns the requirement into a technical spec (files, contracts, validation rules, tests).
-2. **Antigravity** writes the files on disk and returns a digest.
+2. **Antigravity** writes the files on disk and returns a digest. Claude saves the spec to a temporary file and passes it with `--file`, so long specs full of quotes and code never go through the shell.
 3. **Claude** checks the real changes with `git diff`, runs your test suite, fixes what's wrong and reports.
+
+Antigravity always works at the root of your git repository, even if Claude Code is inside a subfolder such as `backend/`; the prompt tells it which subfolder Claude was in.
 
 ```text
 /antigravity:task Crear módulo de envío masivo de correos con carga de destinatarios desde Excel
@@ -306,8 +309,8 @@ Orchestrates the round-trip in one command:
 # Before committing
 /antigravity:review
 
-# Before shipping something risky
-/antigravity:adversarial-review --base main --background
+# Before shipping something risky (with the stronger model)
+/antigravity:adversarial-review --base main --model pro --background
 
 # Stuck on a bug
 /antigravity:delegate investiga por qué falla el test de login y aplica el arreglo mínimo
@@ -390,6 +393,7 @@ AGY_APPROVAL_MODE=auto_edit       # delegate/task: 'auto_edit' (default) or 'yol
 AGY_TIMEOUT_MS=570000             # max time per foreground run
 AGY_BACKGROUND_TIMEOUT_MS=1800000 # max time per background job
 AGY_STATE_DIR=                    # where job state is stored (default ~/.antigravity-cc/state)
+AGY_CONFIG_DIR=                   # /antigravity:model preference + model list cache (default ~/.antigravity-cc)
 AGY_DEBUG=1                       # print the raw backend events to stderr
 AGY_AUTH_MODE=google              # 'google' (default) or 'apikey' (keeps GEMINI_API_KEY in the sub-agent env)
 CODEX_BIN=codex                   # Codex binary when using the Codex engine
@@ -422,25 +426,26 @@ node bin/agy-wrapper.mjs test
 Every successful `agy` run ends with a receipt line that only `agy` can produce:
 
 ```text
-🛰️ Respondido por Antigravity CLI (agy) · conversación b31196d3-ee51-488d-9b0e-787b1da38f6f · 3.6 s · 12.1k tokens · carpeta: C:\path\to\your\project
+🛰️ Respondido por Antigravity CLI (agy) · conversación b31196d3-ee51-488d-9b0e-787b1da38f6f · 3.6 s · 12.1k tokens · modelo predeterminado de agy · carpeta: C:\path\to\your\project
 ```
 
 - The **conversation ID** matches a file written by `agy`. Check it with `Test-Path "$env:USERPROFILE\.gemini\antigravity-cli\conversations\<ID>.db"` (PowerShell) or `ls ~/.gemini/antigravity-cli/conversations/<ID>.db`.
-- Each run also writes a log in `~/.gemini/antigravity-cli/log/`. Its `workspaceDirs=[...]` line shows the folder `agy` worked in.
-- **carpeta** must be your project folder. If it shows another folder, open Claude Code inside the project and run the command again.
+- Each run also writes a log in `~/.gemini/antigravity-cli/log/`. Its `workspaceDirs=[...]` line shows the folder `agy` worked in, and its `model override to backend: label="..."` line shows the model that answered.
+- **modelo** is the model the wrapper asked for (`modelo predeterminado de agy` when none was chosen; today that is Gemini Flash). Change it with `/antigravity:model`.
+- **carpeta** is the root of your git repository. The wrapper always runs `agy` there, even when Claude Code is inside a subfolder such as `backend/`, so the agent can reach the whole project. Outside a git repository it is the current folder.
 - In Claude Code, expand the Bash call of the command: it shows the `node .../agy-wrapper.mjs <action>` execution and its raw output.
 
 ### 1. `IneligibleTierError` / `UNSUPPORTED_CLIENT` ("migrate to the Antigravity suite")
 
 - **Symptom:** `test` or any command fails with `This client is no longer supported for Gemini Code Assist for individuals`. Logging in again doesn't help.
 - **Root Cause:** The wrapper is using the legacy **Gemini CLI**, which Google stopped serving for personal accounts (free, AI Pro and Ultra) on 2026-06-18.
-- **Resolution:** Install Antigravity CLI (`winget install Google.AntigravityCLI` on Windows, `curl -fsSL https://antigravity.google/cli/install.sh | bash` on macOS/Linux), then run `/antigravity:status`. It should show `Motor: Antigravity CLI (agy)`. Finish with `/antigravity:test`. If you had an `agy` alias pointing to `gemini`, rename or delete it.
+- **Resolution:** Install Antigravity CLI (`winget install Google.AntigravityCLI` on Windows, `curl -fsSL https://antigravity.google/cli/install.sh | bash` on macOS/Linux), then run `/antigravity:setup`. It should show `Antigravity CLI (agy)` with a ✅ and an active session. If you had an `agy` alias pointing to `gemini`, rename or delete it.
 
 ### 2. `DENIED: agy.exe se detuvo sin responder ...`
 
 - **Symptom:** A command fails and names a tool (`RunCommand`, `ViewFile`, `WriteToFile`...).
-- **Root Cause:** In headless mode `agy` ends the turn when a tool isn't permitted. Typical causes are a shell command, a write in a read-only command, or a read **outside the project folder** (for example a project the agent remembers from other Antigravity conversations).
-- **Resolution:** Run the command from the project root and phrase the task so it doesn't need shell commands. For `delegate`/`task`, `AGY_APPROVAL_MODE=yolo` approves everything, including commands. Use `AGY_DEBUG=1` to see the exact tool call and path.
+- **Root Cause:** In headless mode `agy` ends the turn when a tool isn't permitted. Typical causes are a shell command, a write in a read-only command, or a read **outside the repository** (for example a project the agent remembers from other Antigravity conversations, or a spec that points to files elsewhere). Since v1.5.2 the wrapper always runs `agy` at the repository root, so starting from a subfolder no longer causes it.
+- **Resolution:** Phrase the task so it doesn't need shell commands or files outside the repository. For `delegate`/`task`, `AGY_APPROVAL_MODE=yolo` approves everything, including commands. Use `AGY_DEBUG=1` to see the exact tool call and path.
 
 ### 3. `429` / quota exceeded
 
@@ -482,7 +487,7 @@ This project is built from the ground up for safe publication to public open-sou
 - **Airtight `.gitignore`:** Pre-configured to block `.env`, `.env.*`, OAuth credential dumps, SSL certificates (`.pem`, `.key`), `.claude.json`, logs, and session snapshots.
 - **In-flight Sanitization:** The wrapper includes defense-in-depth regex masks that redact detected API key formats (`AIza...`, `sk-ant-...`, `sk-...`, `ghp_...`, Bearer tokens) before outputting logs or handling errors.
 - **Local Execution:** Prompts run directly on your machine through your local CLI authentication.
-- **Job state stays local:** job outputs and prompts (which can include your diffs) are stored in `~/.antigravity-cc/state/`, outside your repository, and are never sent anywhere except to your own `agy`.
+- **Job state stays local:** job outputs and prompts (which can include your diffs) are stored in `~/.antigravity-cc/state/`, outside your repository, and are never sent anywhere except to your own `agy`. The `/antigravity:model` preference (`config.json`) and the cached `agy models` list live next to it and hold only model names.
 
 ---
 
@@ -510,6 +515,8 @@ npm test
 git commit -am "chore(release): vX.Y.Z"
 git tag -a vX.Y.Z -m "vX.Y.Z"
 git push origin main vX.Y.Z
+# 4. Publish the GitHub Release with the CHANGELOG section as notes
+gh release create vX.Y.Z --title vX.Y.Z --notes-file notes.md --verify-tag
 ```
 
 `npm run check-version` fails when any version reference drifts. GitHub Actions (`.github/workflows/ci.yml`) runs it and the full test suite on Windows, macOS and Linux for every push and pull request, and validates the plugin manifests.
@@ -521,7 +528,7 @@ The security audit recursively scans every file in the project against known sec
 ## Repository Structure
 
 ```text
-antigravity-cc/
+antigravity-plugin-cc/
 ├── .claude-plugin/
 │   ├── marketplace.json        # Claude Code marketplace catalog
 │   └── plugin.json             # Plugin metadata manifest
@@ -537,8 +544,9 @@ antigravity-cc/
 │   ├── backend.mjs             # agy/gemini/codex detection, arguments, headless runs
 │   ├── git.mjs                 # Review target selection and context collection
 │   ├── jobs.mjs                # Per-repository job registry (status/result/cancel/resume)
+│   ├── models.mjs              # Short model names, effort variants, /antigravity:model preference
 │   └── review.mjs              # Review prompts, structured output parsing and rendering
-├── commands/                   # Slash commands: setup, review, adversarial-review, challenge,
+├── commands/                   # Slash commands: setup, model, review, adversarial-review, challenge,
 │                               # delegate, task, status, result, cancel, login, test
 ├── schemas/
 │   └── review-output.schema.json  # JSON schema enforced on review answers
