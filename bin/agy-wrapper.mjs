@@ -20,6 +20,7 @@ import {
   IS_WINDOWS,
   backendVersion,
   buildChildEnv,
+  compactFileLinks,
   diagnoseError,
   geminiHome,
   getGeminiAuthInfo,
@@ -69,14 +70,20 @@ const WRAPPER_PATH = fileURLToPath(import.meta.url);
 const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version;
 
 const REVIEW_KINDS = new Set(['review', 'adversarial-review']);
-const TEXT_ACTIONS = new Set(['task', 'delegate', 'challenge', 'review', 'adversarial-review']);
+const TEXT_ACTIONS = new Set(['task', 'delegate', 'challenge', 'explore', 'review', 'adversarial-review']);
 // Which earlier conversations --resume may continue for each kind.
-const RESUME_KINDS = { delegate: ['delegate', 'task'], task: ['delegate', 'task'], challenge: ['challenge'] };
+const RESUME_KINDS = {
+  delegate: ['delegate', 'task'],
+  task: ['delegate', 'task'],
+  challenge: ['challenge'],
+  explore: ['explore'],
+};
 
 const KIND_LABELS = {
   review: 'Revisión',
   'adversarial-review': 'Revisión adversarial',
   challenge: 'Crítica de arquitectura',
+  explore: 'Investigación',
   delegate: 'Tarea delegada',
   task: 'Pipeline task',
 };
@@ -128,6 +135,34 @@ function prepareChallenge(text) {
       '2. Cuellos de botella potenciales en hardware, I/O, red o concurrencia.',
       '3. Alternativas arquitectónicas superiores con sus pros y contras.',
       '4. Recomendación final pragmática.',
+    ].join('\n'),
+  };
+}
+
+function prepareExplore(text) {
+  if (!text) {
+    throw new UsageError(
+      'Indica qué hay que investigar.\nEjemplo: /antigravity:explore ¿Dónde se calcula el total del carrito y quién lo usa?'
+    );
+  }
+  return {
+    title: KIND_LABELS.explore,
+    mode: 'read',
+    // The answer lands in Claude's context: keep it short and pointed so Claude never has to
+    // re-read the files Antigravity already went through.
+    prompt: [
+      'Investiga el repositorio para responder la pregunta de Claude Code. Solo lectura: NO modifiques nada.',
+      '<<<PREGUNTA',
+      text,
+      'PREGUNTA>>>',
+      '',
+      'Lee todo lo que necesites, pero tu respuesta debe ser un resumen breve (máximo ~350 palabras) con:',
+      '1. **Respuesta directa** a la pregunta, en 2-4 frases.',
+      '2. **Dónde está:** lista de `ruta/relativa:línea` con una frase de qué hay en cada punto (solo lo relevante).',
+      '3. **Cómo fluye** (si aplica): la cadena de llamadas o datos en pasos cortos, con `archivo:línea`.',
+      '4. **Ojo con:** riesgos, casos raros o dudas que encontraste (omite la sección si no hay).',
+      'No pegues bloques de código largos: como máximo 3 líneas por fragmento y solo si son imprescindibles.',
+      'Si algo no lo pudiste confirmar leyendo el código, dilo en vez de suponerlo.',
     ].join('\n'),
   };
 }
@@ -229,6 +264,7 @@ export function prepareAction(kind, text, flags, cwd = process.cwd()) {
   let prepared;
   if (REVIEW_KINDS.has(kind)) prepared = prepareReview(kind, text, flags, cwd);
   else if (kind === 'challenge') prepared = prepareChallenge(text);
+  else if (kind === 'explore') prepared = prepareExplore(text);
   else if (kind === 'delegate') prepared = prepareDelegate(text);
   else if (kind === 'task') prepared = prepareTask(text);
   else throw new UsageError(`Acción desconocida: ${kind}`);
@@ -283,12 +319,12 @@ export async function runPrepared(payload, { timeoutMs, onSpawn } = {}) {
       body = renderReview(data, { title: payload.title });
       summary = `${data.verdict === 'approve' ? 'Aprobado' : 'Requiere atención'} · ${data.findings.length} hallazgo(s)`;
     } else {
-      body = `# ${payload.title}\n\n_(La respuesta no llegó en formato estructurado; se muestra tal cual.)_\n\n${result.text}`;
+      body = `# ${payload.title}\n\n_(La respuesta no llegó en formato estructurado; se muestra tal cual.)_\n\n${compactFileLinks(result.text)}`;
       summary = firstLine(result.text);
     }
     if (result.deniedNote && data) body += `\n\n⚠️ Acciones denegadas (esperado en solo lectura): ${result.deniedNote}.`;
   } else {
-    body = `# ${payload.title}\n\n${result.text}`;
+    body = `# ${payload.title}\n\n${compactFileLinks(result.text)}`;
     summary = firstLine(result.text);
   }
   if (payload.footer) body += `\n\n${payload.footer}`;
@@ -523,7 +559,7 @@ function renderSetupReport(report) {
   if (report.model.error) out.push(`❌ Modelo: ${report.model.error} Cámbialo con /antigravity:model.`);
   else out.push(`ℹ️ Modelo: ${report.model.label || 'predeterminado de agy (Flash)'} · cámbialo con /antigravity:model`);
   out.push(
-    `ℹ️ Permisos: review/adversarial-review/challenge solo lectura · delegate/task ${report.approvalMode === 'yolo' ? 'todo aprobado (yolo)' : 'leen y editan archivos, sin comandos'}`
+    `ℹ️ Permisos: review/adversarial-review/challenge/explore solo lectura · delegate/task ${report.approvalMode === 'yolo' ? 'todo aprobado (yolo)' : 'leen y editan archivos, sin comandos'}`
   );
   out.push('');
   if (report.ready) {
@@ -586,7 +622,7 @@ function handleModel(text, flags) {
     }
     writeConfig({ model: model?.toLowerCase(), effort: normalizeEffort(effort) });
     console.log(`✔ Modelo predeterminado: **${resolved.label || 'predeterminado de agy'}**`);
-    console.log('Se usará en review, adversarial-review, challenge, delegate y task. Un --model en el comando tiene prioridad.');
+    console.log('Se usará en review, adversarial-review, challenge, explore, delegate y task. Un --model en el comando tiene prioridad.');
     if (process.env.AGY_MODEL || process.env.AGY_EFFORT) {
       console.log('⚠️ AGY_MODEL/AGY_EFFORT están definidas en el entorno y tienen prioridad sobre esta preferencia.');
     }
@@ -726,6 +762,7 @@ COMANDOS:
   review [foco]              Revisión estructurada (solo lectura) de los cambios locales o de la rama.
   adversarial-review [foco]  Revisión que intenta romper el cambio y cuestiona el diseño (solo lectura).
   challenge <idea>           Crítica de arquitectura de un planteamiento (solo lectura).
+  explore <pregunta>         Investiga el código y devuelve un resumen corto con archivo:línea (solo lectura).
   delegate <tarea>           Delega trabajo pesado al sub-agente (lee y edita archivos).
   task <especificación>      Pipeline: el sub-agente codifica en disco + señal de auditoría para Claude.
   status [id] [--all]        Trabajos de este repositorio (o el detalle de uno).
@@ -740,7 +777,7 @@ OPCIONES:
   --background               Ejecuta en segundo plano (sin el límite de 10 min de Claude Code).
   --base <ref>               review/adversarial-review: revisa la rama actual contra <ref>.
   --scope <auto|working-tree|branch>  Qué revisar (auto: cambios locales si hay, si no la rama).
-  --resume                   delegate/task/challenge: continúa la última conversación de agy.
+  --resume                   delegate/task/challenge/explore: continúa la última conversación de agy.
   --conversation <id>        Continúa una conversación concreta de agy.
   --model <modelo>           flash, pro, opus, sonnet, gpt o un ID de "agy models".
   --effort <bajo|medio|alto> Esfuerzo de razonamiento (también low|medium|high|xhigh|max).
@@ -836,6 +873,7 @@ async function main(argv) {
       case 'review':
       case 'adversarial-review':
       case 'challenge':
+      case 'explore':
       case 'delegate':
       case 'task': {
         const payload = prepareAction(action, text, flags, cwd);

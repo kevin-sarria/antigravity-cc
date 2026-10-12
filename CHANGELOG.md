@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-12
+
+### Added
+- **`/antigravity:explore`**: Antigravity investigates the code read-only and answers with a short digest
+  (direct answer, `file:line` pointers, flow, risks), so the files it reads never fill Claude's context.
+  Supports `--resume`, `--background`, `--model` and `--file`.
+- **`antigravity-explore` skill**: Claude hands code investigation to Antigravity on its own when a question
+  would take many file reads, then reads only the line ranges it needs. The `antigravity-rescue` subagent
+  uses `explore` for diagnosis.
+
+### Changed
+- agy's `file:///` editor links in answers are shortened to `path:line` (about 40% fewer characters in a
+  typical digest).
+
 ## [1.5.2] - 2026-10-12
 
 ### Fixed
@@ -131,7 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: `/antigravity:task`, `review`, `delegate`, `challenge`, `status` and `test`
   commands, matching skills, Claude Code marketplace manifest and security audit tests.
 
-[Unreleased]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.2...HEAD
+[Unreleased]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.2...v1.6.0
 [1.5.2]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.4.0...v1.5.0

@@ -157,6 +157,27 @@ describe('end-to-end with a fake agy: reviews, jobs, resume, cancel, setup', () 
     assert.match(res.stdout, /Revisión adversarial/);
   });
 
+  test('explore investigates read-only and asks for a short file:line digest', () => {
+    const out = runWrapper(['explore'], { cwd: repo.dir, env, input: '¿Dónde se calcula el total del carrito?' });
+    assert.equal(out.code, 0, out.stderr);
+    assert.match(out.stdout, /^# Investigación/m);
+    const report = JSON.parse(/\{"args".*\}/.exec(out.stdout)[0]);
+    assert.ok(!report.args.includes('--mode'), 'explore never gets edit permissions');
+    assert.ok(!report.args.includes('--dangerously-skip-permissions'));
+    assert.match(report.content, /NO modifiques nada/);
+    assert.match(report.content, /¿Dónde se calcula el total del carrito\?/);
+    assert.match(report.content, /máximo ~350 palabras/);
+    assert.match(report.content, /ruta\/relativa:línea/);
+
+    const followUp = runWrapper(['explore'], { cwd: repo.dir, env, input: '--resume ¿Y quién lo muestra en pantalla?' });
+    assert.equal(followUp.code, 0, followUp.stderr);
+    assert.match(followUp.stdout, /"--conversation","11111111-2222-3333-4444-555555555555"/);
+
+    const empty = runWrapper(['explore'], { cwd: repo.dir, env, input: '' });
+    assert.equal(empty.code, 1);
+    assert.match(empty.stderr, /Indica qué hay que investigar/);
+  });
+
   test('runs agy at the repository root when started from a subfolder', () => {
     const sub = path.join(repo.dir, 'backend', 'src');
     mkdirSync(sub, { recursive: true });

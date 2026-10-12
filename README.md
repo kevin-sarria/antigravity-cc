@@ -29,6 +29,7 @@ Claude Code leads project direction, interactive architecture decisions, and hig
   - [Options](#options)
   - [Choosing the model](#choosing-the-model)
   - [Reviews](#reviews)
+  - [Saving Claude tokens with `explore`](#saving-claude-tokens-with-explore)
   - [Background jobs](#background-jobs)
   - [Continuing a conversation](#continuing-a-conversation)
   - [`/antigravity:task <requirement>`](#antigravitytask-requirement)
@@ -177,6 +178,7 @@ node /path/to/antigravity-plugin-cc/bin/agy-wrapper.mjs --help
 | `/antigravity:review` | Structured review of your uncommitted changes or your branch: verdict, findings by severity with `file:line`. | Read-only |
 | `/antigravity:adversarial-review` | Review that tries to **break** the change and questions the design (auth, data loss, races, rollback). | Read-only |
 | `/antigravity:challenge <idea>` | Skeptical architecture critique of a proposal or decision. | Read-only |
+| `/antigravity:explore <question>` | Antigravity reads the code for you and returns a short digest with `file:line` pointers. Saves Claude's context. | Read-only |
 | `/antigravity:delegate <task>` | Hands a task to Antigravity, which edits files on disk and returns a digest. | Read + edit files |
 | `/antigravity:task <requirement>` | Full pipeline: Claude writes the spec, Antigravity builds it, Claude audits and fixes. | Read + edit files |
 | `/antigravity:status [id]` | Running and recent jobs for this repository, or the details of one job. | — |
@@ -193,15 +195,15 @@ Write options before the text; they work in any order:
 
 | Option | Applies to | Effect |
 | :--- | :--- | :--- |
-| `--background` | review, adversarial-review, challenge, delegate, task | Runs as a background job. The command returns at once with a job ID, and the 10-minute limit of Claude Code no longer applies (`AGY_BACKGROUND_TIMEOUT_MS`, default 30 min). |
+| `--background` | review, adversarial-review, challenge, explore, delegate, task | Runs as a background job. The command returns at once with a job ID, and the 10-minute limit of Claude Code no longer applies (`AGY_BACKGROUND_TIMEOUT_MS`, default 30 min). |
 | `--wait` | review, adversarial-review | Runs in the foreground without asking. |
 | `--base <branch>` | review, adversarial-review | Reviews the current branch against `<branch>`, e.g. `--base main`. |
 | `--scope auto\|working-tree\|branch` | review, adversarial-review | `auto` (default) reviews uncommitted changes when there are any, otherwise the branch against the default branch. |
-| `--resume` | delegate, task, challenge | Continues the last Antigravity conversation of that kind in this repository. Send only the new instruction. |
-| `--conversation <id>` | delegate, task, challenge | Continues a specific `agy` conversation. |
+| `--resume` | delegate, task, challenge, explore | Continues the last Antigravity conversation of that kind in this repository. Send only the new instruction. |
+| `--conversation <id>` | delegate, task, challenge, explore | Continues a specific `agy` conversation. |
 | `--model <name>` | all runs | Model for this run: `flash`, `pro`, `opus`, `sonnet`, `gpt` or an ID from `agy models`. |
 | `--effort <bajo\|medio\|alto>` | all runs | Reasoning effort for this run (`low\|medium\|high` work too). |
-| `--file <path>` | review, adversarial-review, challenge, delegate, task | Reads the text from a file. `task` and the rescue subagent use it for long specs, because big heredocs with quotes can break Claude Code's Bash tool. |
+| `--file <path>` | review, adversarial-review, challenge, explore, delegate, task | Reads the text from a file. `task` and the rescue subagent use it for long specs, because big heredocs with quotes can break Claude Code's Bash tool. |
 
 > [!IMPORTANT]
 > In headless mode, `agy` auto-denies every tool that needs permission **and ends the turn without an answer**. The wrapper handles it like this:
@@ -266,6 +268,21 @@ Reviews never change code. After a review, Claude shows the findings and **asks 
 /antigravity:review --base main revisa sobre todo la autorización
 /antigravity:adversarial-review --background piensa en qué pasa si el pago falla a la mitad
 ```
+
+### Saving Claude tokens with `explore`
+
+Every file Claude reads stays in its context for the rest of the session, and the whole context is read again on every reply. In long sessions that, not the plugin, is what burns tokens. `explore` moves the reading to Antigravity:
+
+```text
+/antigravity:explore ¿Dónde se valida el stock al crear una venta y qué pasa si dos ventas llegan a la vez?
+/antigravity:explore --resume ¿Y dónde se descuenta el stock?
+```
+
+Antigravity reads whatever it needs (read-only) and answers with a short digest: the direct answer, `file:line` pointers, the flow and anything risky. In a test on this repository the answer was about 3k characters, against 75k for the three files Claude would otherwise have read.
+
+The `antigravity-explore` skill makes Claude do this **on its own** when a question would take more than a handful of file reads, and then read only the line ranges it needs to edit. The `antigravity-rescue` subagent uses `explore` for diagnosis too. Answers from every command also have agy's `file:///` editor links shortened to `path:line`.
+
+Other habits that cut Claude usage much more than any plugin can: start a new session (`/clear`) for each task or `/compact` before the context grows large, prefer reading page text over screenshots, and use a cheaper model (`/model`) for routine edits.
 
 ### Background jobs
 
@@ -547,7 +564,7 @@ antigravity-plugin-cc/
 │   ├── models.mjs              # Short model names, effort variants, /antigravity:model preference
 │   └── review.mjs              # Review prompts, structured output parsing and rendering
 ├── commands/                   # Slash commands: setup, model, review, adversarial-review, challenge,
-│                               # delegate, task, status, result, cancel, login, test
+│                               # explore, delegate, task, status, result, cancel, login, test
 ├── schemas/
 │   └── review-output.schema.json  # JSON schema enforced on review answers
 ├── scripts/
@@ -555,6 +572,7 @@ antigravity-plugin-cc/
 ├── skills/
 │   ├── antigravity-review/     # When to request a review (auto-invocable)
 │   ├── antigravity-challenge/  # When to request an architecture critique (auto-invocable)
+│   ├── antigravity-explore/    # Hand code investigation to Antigravity to save context (auto-invocable)
 │   ├── antigravity-delegate/   # Delegation (user-invoked)
 │   ├── antigravity-task/       # Round-trip pipeline (user-invoked)
 │   └── antigravity-result-handling/  # Internal rules for presenting results

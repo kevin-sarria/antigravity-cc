@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, chmodSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   buildBackendArgs,
   parseGeminiJson,
@@ -14,6 +14,7 @@ import {
   toolPolicy,
   diagnoseError,
   cleanOutput,
+  compactFileLinks,
 } from '../bin/agy-wrapper.mjs';
 
 // Test runs must never write job state into the real home directory.
@@ -132,6 +133,24 @@ describe('output helpers', () => {
     const parsed = parseGeminiJson('Warning: x\n{"response":"hola","stats":{}}');
     assert.equal(parsed.response, 'hola');
     assert.equal(parseGeminiJson('texto plano'), null);
+  });
+
+  test('compactFileLinks turns agy editor links into short relative references', () => {
+    const root = path.resolve(os.tmpdir(), 'proyecto');
+    const url = (rel, anchor) => `${pathToFileURL(path.join(root, rel)).href}${anchor}`;
+    const text = [
+      `- [\`lib/models.mjs:76\`](${url('lib/models.mjs', '#L76-L80')}): lee la config.`,
+      `1. [\`prepareAction\`](${url('bin/agy-wrapper.mjs', '#L278')}) invoca la resolución.`,
+      `- \`lib/a.mjs:7\`: [\`fn\`](${url('lib/a.mjs', '#L7')}) hace algo.`,
+      `Fuera: [x](${url('../otro/b.js', '#L3')})`,
+    ].join('\n');
+    const out = compactFileLinks(text, root);
+    assert.ok(!out.includes('file://'));
+    assert.match(out, /^- `lib\/models\.mjs:76`: lee la config\.$/m);
+    assert.match(out, /^1\. `prepareAction` \(`bin\/agy-wrapper\.mjs:278`\) invoca/m);
+    assert.match(out, /^- `lib\/a\.mjs:7`: `fn` hace algo\.$/m, 'no repeated path on the same line');
+    assert.match(out, /Fuera: x \(`.*otro\/b\.js:3`\)/);
+    assert.equal(compactFileLinks('sin enlaces [a](https://x.com)', root), 'sin enlaces [a](https://x.com)');
   });
 
   test('cleanOutput drops color and ripgrep banners', () => {
