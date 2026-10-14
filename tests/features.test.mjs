@@ -6,7 +6,7 @@ import path from 'node:path';
 
 import { parseArgv, splitLeadingFlags } from '../lib/args.mjs';
 import { collectReviewContext, repoSubfolder, resolveReviewTarget } from '../lib/git.mjs';
-import { isPidAlive } from '../lib/jobs.mjs';
+import { isPidAlive, workspaceRoot } from '../lib/jobs.mjs';
 import { parseReviewResult, renderReview } from '../lib/review.mjs';
 import { createFakeAgy, createRepo, runWrapper } from './helpers.mjs';
 
@@ -66,6 +66,17 @@ describe('review target selection', () => {
     assert.throws(() => resolveReviewTarget(repo.dir, { base: '--output=/tmp/x' }), /no válida/);
     assert.throws(() => resolveReviewTarget(repo.dir, { base: 'main; rm -rf /' }), /no válida/);
     assert.throws(() => resolveReviewTarget(repo.dir, { scope: 'staged' }), /--scope/);
+  });
+
+  test('workspaceRoot upper-cases a lowercase Windows drive (agy denies edits otherwise)', { skip: process.platform !== 'win32' }, () => {
+    const nonGit = mkdtempSync(path.join(os.tmpdir(), 'agy-drive-'));
+    try {
+      const lower = nonGit.replace(/^[A-Z]:/, (d) => d.toLowerCase());
+      assert.match(workspaceRoot(lower), /^[A-Z]:\\/);
+      assert.equal(workspaceRoot(lower).toLowerCase(), path.resolve(nonGit).toLowerCase());
+    } finally {
+      rmSync(nonGit, { recursive: true, force: true });
+    }
   });
 
   test('repoSubfolder reports prefix inside git and empty string at root or outside', () => {
@@ -155,6 +166,45 @@ describe('end-to-end with a fake agy: reviews, jobs, resume, cancel, setup', () 
     const res = runWrapper(['adversarial-review'], { cwd: repo.dir, env, input: 'rollback' });
     assert.equal(res.code, 0, res.stderr);
     assert.match(res.stdout, /Revisión adversarial/);
+  });
+
+  test('a command attempt stops with DENIED_COMMAND and the way to continue', () => {
+    const out = runWrapper(['delegate'], { cwd: repo.dir, env, input: 'Corre los tests DENYME' });
+    assert.equal(out.code, 1);
+    assert.match(out.stderr, /DENIED_COMMAND: .*quiso ejecutar un comando \(RunCommand\)/);
+    assert.match(out.stderr, /--full-access --conversation 11111111-2222-3333-4444-555555555555/);
+    assert.match(out.stderr, /Por defecto se pregunta antes de permitirlo/);
+
+    const readOnly = runWrapper(['challenge'], { cwd: repo.dir, env, input: 'Opina DENYME' });
+    assert.match(readOnly.stderr, /^❌.*DENIED: /m, 'read-only commands never offer full access');
+    assert.doesNotMatch(readOnly.stderr, /DENIED_COMMAND/);
+  });
+
+  test('full access: --full-access for one run, /antigravity:permissions to keep it', () => {
+    const argsOf = (res) => JSON.parse(/\{"args".*\}/.exec(res.stdout)[0]);
+    const once = argsOf(runWrapper(['delegate'], { cwd: repo.dir, env, input: '--full-access Corre los tests' }));
+    assert.ok(once.args.includes('--dangerously-skip-permissions'));
+    assert.doesNotMatch(once.content, /REGLAS DE HERRAMIENTAS/);
+
+    const plain = argsOf(runWrapper(['delegate'], { cwd: repo.dir, env, input: 'Corre los tests' }));
+    assert.deepEqual(plain.args.slice(plain.args.indexOf('--mode'), plain.args.indexOf('--mode') + 2), ['--mode', 'accept-edits']);
+    assert.match(plain.content, /requiere permiso del usuario/);
+
+    const enabled = runWrapper(['permissions', 'total'], { cwd: repo.dir, env });
+    assert.equal(enabled.code, 0, enabled.stderr);
+    assert.match(enabled.stdout, /Acceso total activado/);
+    assert.match(runWrapper(['permissions'], { cwd: repo.dir, env }).stdout, /\*\*Ahora:\*\* ⚠️ acceso total/);
+    assert.ok(argsOf(runWrapper(['task'], { cwd: repo.dir, env, input: 'Implementa algo' })).args.includes('--dangerously-skip-permissions'));
+    // Reviews and investigations stay read-only even with full access.
+    assert.ok(!argsOf(runWrapper(['explore'], { cwd: repo.dir, env, input: '¿Dónde?' })).args.includes('--dangerously-skip-permissions'));
+    // Changing the model keeps the permission preference.
+    runWrapper(['model', 'reset'], { cwd: repo.dir, env });
+    assert.match(runWrapper(['permissions'], { cwd: repo.dir, env }).stdout, /acceso total/);
+
+    const back = runWrapper(['permissions', 'preguntar'], { cwd: repo.dir, env });
+    assert.match(back.stdout, /Modo preguntar/);
+    assert.ok(!argsOf(runWrapper(['delegate'], { cwd: repo.dir, env, input: 'Corre los tests' })).args.includes('--dangerously-skip-permissions'));
+    assert.equal(runWrapper(['permissions', 'quizas'], { cwd: repo.dir, env }).code, 1);
   });
 
   test('explore investigates read-only and asks for a short file:line digest', () => {

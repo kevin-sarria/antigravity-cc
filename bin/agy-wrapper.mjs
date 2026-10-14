@@ -38,6 +38,7 @@ import {
   loadCatalog,
   normalizeEffort,
   readConfig,
+  resolveApproval,
   resolveModelSelection,
   resolveRunModel,
   writeConfig,
@@ -184,7 +185,7 @@ function prepareDelegate(text) {
       '',
       'Instrucciones de ejecución:',
       '1. Realiza las modificaciones o creaciones necesarias directamente en los archivos del repositorio local.',
-      '2. Si puedes ejecutar comandos, corre las pruebas asociadas. Si no tienes permiso de shell, indícalo: Claude Code las ejecutará.',
+      '2. Cuando termines los cambios de archivos, corre las pruebas asociadas si hace falta (ejecutar comandos puede requerir permiso del usuario).',
       '3. Devuelve únicamente un resumen con:',
       '   - Archivos afectados / creados',
       '   - Cambios implementados',
@@ -216,7 +217,7 @@ function prepareTask(text) {
       '1. Analiza la arquitectura del repositorio actual y los estándares del proyecto.',
       '2. Crea y modifica directamente en el sistema de archivos todos los módulos, componentes, tipos, servicios y pruebas necesarias.',
       '3. Incluye manejo de errores, validaciones de seguridad y tipado riguroso.',
-      '4. Escribe pruebas automatizadas. Ejecútalas solo si tienes permiso de shell; si no, indícalo (Claude Code las ejecutará).',
+      '4. Escribe pruebas automatizadas y, al final, ejecútalas (ejecutar comandos puede requerir permiso del usuario).',
       '5. DEVUELVE ÚNICAMENTE un informe estructurado con:',
       '   - Lista detallada de archivos creados y modificados.',
       '   - Resumen técnico de la implementación realizada.',
@@ -282,7 +283,17 @@ export function prepareAction(kind, text, flags, cwd = process.cwd()) {
     effort: selection.effort,
     conversationId: resolveConversation(kind, flags, cwd),
   });
-  return { ...prepared, kind, engine: flags.engine || null, model, effort, modelLabel: selection.label, conversationId };
+  const writeApproval = prepared.mode === 'write' ? resolveApproval(flags).mode : undefined;
+  return {
+    ...prepared,
+    kind,
+    engine: flags.engine || null,
+    model,
+    effort,
+    modelLabel: selection.label,
+    conversationId,
+    writeApproval,
+  };
 }
 
 function firstLine(text, limit = 100) {
@@ -308,6 +319,7 @@ export async function runPrepared(payload, { timeoutMs, onSpawn } = {}) {
     effort: payload.effort,
     conversationId: payload.conversationId,
     schemaPath: payload.structured ? REVIEW_SCHEMA_PATH : undefined,
+    writeApproval: payload.writeApproval,
     onSpawn,
   });
 
@@ -514,7 +526,7 @@ async function collectSetupReport({ ping = true } = {}) {
       : null,
     auth: { checked: false, ok: false, error: null },
     install: backend && backend.type === 'antigravity' ? null : { command: installCommand() },
-    approvalMode: process.env.AGY_APPROVAL_MODE || 'auto_edit',
+    approvalMode: resolveApproval({}).mode,
     model: { label: null, error: null },
   };
   let selection = {};
@@ -559,7 +571,7 @@ function renderSetupReport(report) {
   if (report.model.error) out.push(`❌ Modelo: ${report.model.error} Cámbialo con /antigravity:model.`);
   else out.push(`ℹ️ Modelo: ${report.model.label || 'predeterminado de agy (Flash)'} · cámbialo con /antigravity:model`);
   out.push(
-    `ℹ️ Permisos: review/adversarial-review/challenge/explore solo lectura · delegate/task ${report.approvalMode === 'yolo' ? 'todo aprobado (yolo)' : 'leen y editan archivos, sin comandos'}`
+    `ℹ️ Permisos: review/adversarial-review/challenge/explore solo lectura · delegate/task ${report.approvalMode === 'yolo' ? '⚠️ ACCESO TOTAL (ejecutan comandos sin preguntar)' : 'editan archivos y preguntan antes de ejecutar comandos'} · cámbialo con /antigravity:permissions`
   );
   out.push('');
   if (report.ready) {
@@ -593,6 +605,59 @@ async function handleTest(flags) {
 }
 
 /**
+ * /antigravity:permissions — what delegate/task may do on this machine.
+ *   permissions            → current mode
+ *   permissions total      → run commands without asking (agy --dangerously-skip-permissions)
+ *   permissions preguntar  → default: edit files, ask before any command
+ */
+function handlePermissions(text) {
+  const word = (text || '').trim().split(/\s+/)[0]?.toLowerCase() || '';
+  const FULL = ['total', 'full', 'todo', 'yolo'];
+  const ASK = ['preguntar', 'ask', 'normal', 'reset', 'default'];
+  if (word && !FULL.includes(word) && !ASK.includes(word)) {
+    throw new UsageError(`Opción no válida: "${word}". Usa /antigravity:permissions total o /antigravity:permissions preguntar.`);
+  }
+  if (FULL.includes(word)) {
+    writeConfig({ approval: 'full' });
+    console.log(
+      [
+        '⚠️ **Acceso total activado.** En delegate y task, Antigravity ejecutará comandos en tu PC sin preguntar',
+        '(tests, instalaciones, git, borrar archivos...). review, adversarial-review, challenge y explore siguen siendo de solo lectura.',
+        '',
+        'Para volver a que pregunte antes de ejecutar: `/antigravity:permissions preguntar`',
+      ].join('\n')
+    );
+  } else if (ASK.includes(word)) {
+    writeConfig({ approval: undefined });
+    console.log(
+      '✔ **Modo preguntar** (predeterminado): Antigravity edita archivos del proyecto y, si quiere ejecutar un comando, se detiene y Claude te pregunta.'
+    );
+  } else {
+    const { mode, source } = resolveApproval({});
+    const where = { env: 'definido por AGY_APPROVAL_MODE', config: 'guardado con /antigravity:permissions', default: 'predeterminado' }[source];
+    console.log(
+      [
+        '# Antigravity · permisos',
+        '',
+        mode === 'yolo'
+          ? `**Ahora:** ⚠️ acceso total: ejecuta comandos sin preguntar (${where}).`
+          : `**Ahora:** preguntar: edita archivos y pide permiso antes de ejecutar comandos (${where}).`,
+        '',
+        '| Modo | delegate / task | Cómo activarlo |',
+        '| --- | --- | --- |',
+        '| preguntar (predeterminado) | Lee y edita archivos del proyecto. Si quiere ejecutar un comando, se detiene y Claude te pregunta. | `/antigravity:permissions preguntar` |',
+        '| total | Además ejecuta cualquier comando sin preguntar (tests, instalaciones, git...). | `/antigravity:permissions total` |',
+        '',
+        'review, adversarial-review, challenge y explore son siempre de solo lectura.',
+      ].join('\n')
+    );
+  }
+  if (word && process.env.AGY_APPROVAL_MODE) {
+    console.log(`⚠️ AGY_APPROVAL_MODE=${process.env.AGY_APPROVAL_MODE} está definida en el entorno y tiene prioridad sobre esta preferencia.`);
+  }
+}
+
+/**
  * /antigravity:model — show or change the default model and effort.
  *   model                → current default + available models
  *   model pro alto       → save a default ("pro", "flash alto", "bajo", an agy ID...)
@@ -604,7 +669,7 @@ function handleModel(text, flags) {
   const current = readConfig();
 
   if (flags.reset || ['reset', 'default', 'predeterminado'].includes(words[0]?.toLowerCase())) {
-    writeConfig({});
+    writeConfig({ model: undefined, effort: undefined });
     console.log('✔ Volviste al modelo predeterminado de agy (Flash). Cada comando puede usar otro con --model.');
     return;
   }
@@ -770,6 +835,7 @@ COMANDOS:
   cancel [id]                Cancela un trabajo en curso.
   setup [--json]             Verifica Node, git, Antigravity CLI y la sesión.
   model [nombre] [esfuerzo]  Muestra o cambia el modelo predeterminado (p. ej. "model pro alto", "model reset").
+  permissions [total|preguntar]  Acceso total (comandos sin preguntar) o preguntar antes de ejecutar (predeterminado).
   login [--reset]            Abre una consola para iniciar sesión con tu cuenta Google AI Pro.
   test                       Prueba de humo de la conexión.
 
@@ -782,6 +848,7 @@ OPCIONES:
   --model <modelo>           flash, pro, opus, sonnet, gpt o un ID de "agy models".
   --effort <bajo|medio|alto> Esfuerzo de razonamiento (también low|medium|high|xhigh|max).
   --file <ruta>              Lee el texto (p. ej. una especificación larga) desde un archivo.
+  --full-access              delegate/task: solo esta vez, ejecuta comandos sin preguntar.
   --engine <antigravity|gemini|codex>   Fuerza el motor.
   -h, --help / -v, --version
 
@@ -856,7 +923,7 @@ async function main(argv) {
   flags = { ...flags, launchDir, launchSubfolder };
 
   try {
-    if ((TEXT_ACTIONS.has(action) || action === 'model') && !text) {
+    if ((TEXT_ACTIONS.has(action) || action === 'model' || action === 'permissions') && !text) {
       const piped = splitLeadingFlags(await readPipedStdin());
       flags = { ...flags, ...piped.flags };
       text = piped.text;
@@ -905,6 +972,9 @@ async function main(argv) {
         return;
       case 'model':
         handleModel(text, flags);
+        return;
+      case 'permissions':
+        handlePermissions(text);
         return;
       case 'login':
         handleLogin(flags);

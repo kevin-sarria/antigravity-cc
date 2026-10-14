@@ -162,7 +162,10 @@ describe('output helpers', () => {
     const hints = diagnoseError('IneligibleTierError: UNSUPPORTED_CLIENT').join('\n');
     assert.match(hints, /winget install Google\.AntigravityCLI/);
     assert.match(diagnoseError('NOT_INSTALLED: x').join('\n'), /antigravity\.google\/cli/);
-    assert.match(diagnoseError('DENIED: x').join('\n'), /AGY_APPROVAL_MODE=yolo/);
+    assert.match(diagnoseError('DENIED: x').join('\n'), /fuera de la carpeta del proyecto/);
+    const command = diagnoseError('DENIED_COMMAND: x').join('\n');
+    assert.match(command, /--full-access/);
+    assert.match(command, /\/antigravity:permissions total/);
   });
 });
 

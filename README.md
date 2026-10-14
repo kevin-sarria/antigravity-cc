@@ -27,6 +27,7 @@ Claude Code leads project direction, interactive architecture decisions, and hig
   - [2. Run as Standalone CLI](#2-run-as-standalone-cli)
 - [Command Reference](#command-reference)
   - [Options](#options)
+  - [Permissions](#permissions-what-antigravity-may-do-on-your-pc)
   - [Choosing the model](#choosing-the-model)
   - [Reviews](#reviews)
   - [Saving Claude tokens with `explore`](#saving-claude-tokens-with-explore)
@@ -179,8 +180,9 @@ node /path/to/antigravity-plugin-cc/bin/agy-wrapper.mjs --help
 | `/antigravity:adversarial-review` | Review that tries to **break** the change and questions the design (auth, data loss, races, rollback). | Read-only |
 | `/antigravity:challenge <idea>` | Skeptical architecture critique of a proposal or decision. | Read-only |
 | `/antigravity:explore <question>` | Antigravity reads the code for you and returns a short digest with `file:line` pointers. Saves Claude's context. | Read-only |
-| `/antigravity:delegate <task>` | Hands a task to Antigravity, which edits files on disk and returns a digest. | Read + edit files |
-| `/antigravity:task <requirement>` | Full pipeline: Claude writes the spec, Antigravity builds it, Claude audits and fixes. | Read + edit files |
+| `/antigravity:delegate <task>` | Hands a task to Antigravity, which edits files on disk and returns a digest. | Edit files · commands after you say yes |
+| `/antigravity:task <requirement>` | Full pipeline: Claude writes the spec, Antigravity builds it, Claude audits and fixes. | Edit files · commands after you say yes |
+| `/antigravity:permissions [total\|preguntar]` | Lets `delegate`/`task` run commands without asking (`total`), or asks first (`preguntar`, the default). | — |
 | `/antigravity:status [id]` | Running and recent jobs for this repository, or the details of one job. | — |
 | `/antigravity:result [id]` | Stored output of a finished job (the latest one by default). | — |
 | `/antigravity:cancel [id]` | Stops a running job. | — |
@@ -204,14 +206,36 @@ Write options before the text; they work in any order:
 | `--model <name>` | all runs | Model for this run: `flash`, `pro`, `opus`, `sonnet`, `gpt` or an ID from `agy models`. |
 | `--effort <bajo\|medio\|alto>` | all runs | Reasoning effort for this run (`low\|medium\|high` work too). |
 | `--file <path>` | review, adversarial-review, challenge, explore, delegate, task | Reads the text from a file. `task` and the rescue subagent use it for long specs, because big heredocs with quotes can break Claude Code's Bash tool. |
+| `--full-access` | delegate, task | For this run only, Antigravity may run commands without asking. Claude adds it only after you say yes. |
 
-> [!IMPORTANT]
-> In headless mode, `agy` auto-denies every tool that needs permission **and ends the turn without an answer**. The wrapper handles it like this:
-> - `review`, `adversarial-review`, `challenge` and `test` run in the default mode: the agent can read files inside the project, but not write or run commands.
-> - `delegate` and `task` run with `--mode accept-edits`: the agent can also create and edit files, but not run shell commands, so Claude runs the tests afterwards.
-> - Every prompt starts with tool rules (no terminal commands, stay inside the project folder), and a turn cut short by a denied tool is reported as `DENIED: ...`.
->
-> Set `AGY_APPROVAL_MODE=yolo` to let `delegate`/`task` run commands too (`--dangerously-skip-permissions`; it approves everything).
+### Permissions: what Antigravity may do on your PC
+
+| Mode | `delegate` / `task` | Turn it on |
+| :--- | :--- | :--- |
+| **preguntar** (default) | Reads and edits files in the project. When it needs a command (tests, installs, builds, git...), it stops and **Claude asks you**. On a yes it continues the same conversation with that permission. | `/antigravity:permissions preguntar` |
+| **total** | Also runs any command on your machine without asking (`agy --dangerously-skip-permissions`). | `/antigravity:permissions total` |
+
+`review`, `adversarial-review`, `challenge`, `explore` and `test` are always read-only, in any mode.
+
+This is how "ask first" works. In headless mode `agy` cannot show a prompt, so a command attempt ends its turn. In *preguntar* mode the prompt tells Antigravity to finish the file work first and try commands last. When it tries one, the wrapper reports `DENIED_COMMAND` with the command and the conversation ID, and Claude asks you:
+
+- **Sí, solo esta tarea:** Claude continues with `--full-access --conversation <id>`. Antigravity picks up where it stopped, runs the command and finishes.
+- **Sí, siempre:** Claude runs `/antigravity:permissions total` and continues.
+- **No:** Antigravity finishes without commands, and Claude runs what is needed itself.
+
+```text
+/antigravity:permissions                # show the current mode
+/antigravity:permissions total          # full access from now on
+/antigravity:permissions preguntar      # back to asking first
+```
+
+The choice is saved in `~/.antigravity-cc/config.json`. `AGY_APPROVAL_MODE` (`auto_edit` or `yolo`) overrides it, and `--full-access` overrides both for one run. `/antigravity:setup` shows the active mode.
+
+> [!WARNING]
+> With full access, a prompt-injected file or a wrong instruction can make Antigravity delete files, push code or install packages without anyone checking first. Keep your work committed, and prefer *preguntar* on repositories you don't fully trust.
+
+> [!NOTE]
+> In any mode Antigravity only works inside the project folder (the git repository root). A read or write outside it ends the turn with `DENIED: ...`.
 
 ### Choosing the model
 
@@ -406,7 +430,7 @@ AGY_BIN=/home/me/.local/bin/agy   # custom binary (agy or gemini, auto-detected)
 AGY_ENGINE=antigravity            # 'antigravity' (default), 'gemini' (legacy, enterprise only) or 'codex'
 AGY_MODEL=                        # default model: flash, pro, opus... (easier: /antigravity:model)
 AGY_EFFORT=                       # default effort: bajo, medio, alto
-AGY_APPROVAL_MODE=auto_edit       # delegate/task: 'auto_edit' (default) or 'yolo' (also shell commands)
+AGY_APPROVAL_MODE=                # delegate/task: 'auto_edit' (ask before commands) or 'yolo' (full access); easier: /antigravity:permissions
 AGY_TIMEOUT_MS=570000             # max time per foreground run
 AGY_BACKGROUND_TIMEOUT_MS=1800000 # max time per background job
 AGY_STATE_DIR=                    # where job state is stored (default ~/.antigravity-cc/state)
@@ -458,23 +482,27 @@ Every successful `agy` run ends with a receipt line that only `agy` can produce:
 - **Root Cause:** The wrapper is using the legacy **Gemini CLI**, which Google stopped serving for personal accounts (free, AI Pro and Ultra) on 2026-06-18.
 - **Resolution:** Install Antigravity CLI (`winget install Google.AntigravityCLI` on Windows, `curl -fsSL https://antigravity.google/cli/install.sh | bash` on macOS/Linux), then run `/antigravity:setup`. It should show `Antigravity CLI (agy)` with a ✅ and an active session. If you had an `agy` alias pointing to `gemini`, rename or delete it.
 
-### 2. `DENIED: agy.exe se detuvo sin responder ...`
+### 2. `DENIED_COMMAND: agy.exe quiso ejecutar un comando ...`
 
-- **Symptom:** A command fails and names a tool (`RunCommand`, `ViewFile`, `WriteToFile`...).
-- **Root Cause:** In headless mode `agy` ends the turn when a tool isn't permitted. Typical causes are a shell command, a write in a read-only command, or a read **outside the repository** (for example a project the agent remembers from other Antigravity conversations, or a spec that points to files elsewhere). Since v1.5.2 the wrapper always runs `agy` at the repository root, so starting from a subfolder no longer causes it.
-- **Resolution:** Phrase the task so it doesn't need shell commands or files outside the repository. For `delegate`/`task`, `AGY_APPROVAL_MODE=yolo` approves everything, including commands. Use `AGY_DEBUG=1` to see the exact tool call and path.
+- **Not an error:** `delegate`/`task` wanted to run a command and, in the default *preguntar* mode, stopped to ask. Claude asks you and continues the same conversation on a yes (see [Permissions](#permissions-what-antigravity-may-do-on-your-pc)). Outside Claude Code, re-run with `--full-access --conversation <id>` from the error.
 
-### 3. `429` / quota exceeded
+### 3. `DENIED: agy.exe se detuvo sin responder ...`
+
+- **Symptom:** A command fails and names a tool (`ViewFile`, `WriteToFile`, `ReplaceFileContent`...).
+- **Root Cause:** In headless mode `agy` ends the turn when a tool isn't permitted. Typical causes are a write in a read-only command (review, explore...) or a read or write **outside the repository** (for example a project the agent remembers from other Antigravity conversations, or a spec that points to files elsewhere). Since v1.5.2 `agy` always runs at the repository root, and since v1.7.0 the drive letter is normalized (VS Code's `c:\` made every file look outside the project, so all edits were denied).
+- **Resolution:** Keep the task inside the project folder. Use `AGY_DEBUG=1` to see the exact tool call and path.
+
+### 4. `429` / quota exceeded
 
 - **Root Cause:** The account hit its usage limits, or a free API key is being used (`AGY_AUTH_MODE=apikey`).
 - **Resolution:** Remove `AGY_AUTH_MODE=apikey` so your Google AI Pro session is used. Otherwise wait for the quota to reset or pick another model with `/antigravity:model`.
 
-### 4. `TIMEOUT: ...`
+### 5. `TIMEOUT: ...`
 
 - **Root Cause:** The sub-agent ran longer than `AGY_TIMEOUT_MS` (default 570 s). Claude Code's Bash tool can't wait more than 10 minutes.
 - **Resolution:** Split the task into smaller pieces.
 
-### 5. Engine Not Found
+### 6. Engine Not Found
 
 - **Symptom:** `NOT_INSTALLED: No se encontró Antigravity CLI (agy)`.
 - **Resolution:** Install Antigravity CLI (see [Prerequisites](#prerequisites)), or point `AGY_BIN` to the binary, e.g. `AGY_BIN=C:\Users\<username>\AppData\Local\agy\bin\agy.exe`.
@@ -504,7 +532,7 @@ This project is built from the ground up for safe publication to public open-sou
 - **Airtight `.gitignore`:** Pre-configured to block `.env`, `.env.*`, OAuth credential dumps, SSL certificates (`.pem`, `.key`), `.claude.json`, logs, and session snapshots.
 - **In-flight Sanitization:** The wrapper includes defense-in-depth regex masks that redact detected API key formats (`AIza...`, `sk-ant-...`, `sk-...`, `ghp_...`, Bearer tokens) before outputting logs or handling errors.
 - **Local Execution:** Prompts run directly on your machine through your local CLI authentication.
-- **Job state stays local:** job outputs and prompts (which can include your diffs) are stored in `~/.antigravity-cc/state/`, outside your repository, and are never sent anywhere except to your own `agy`. The `/antigravity:model` preference (`config.json`) and the cached `agy models` list live next to it and hold only model names.
+- **Job state stays local:** job outputs and prompts (which can include your diffs) are stored in `~/.antigravity-cc/state/`, outside your repository, and are never sent anywhere except to your own `agy`. The `/antigravity:model` and `/antigravity:permissions` preferences (`config.json`) and the cached `agy models` list live next to it and hold only model names and the permission mode.
 
 ---
 
@@ -563,8 +591,8 @@ antigravity-plugin-cc/
 │   ├── jobs.mjs                # Per-repository job registry (status/result/cancel/resume)
 │   ├── models.mjs              # Short model names, effort variants, /antigravity:model preference
 │   └── review.mjs              # Review prompts, structured output parsing and rendering
-├── commands/                   # Slash commands: setup, model, review, adversarial-review, challenge,
-│                               # explore, delegate, task, status, result, cancel, login, test
+├── commands/                   # Slash commands: setup, model, permissions, review, adversarial-review,
+│                               # challenge, explore, delegate, task, status, result, cancel, login, test
 ├── schemas/
 │   └── review-output.schema.json  # JSON schema enforced on review answers
 ├── scripts/

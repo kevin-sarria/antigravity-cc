@@ -9,7 +9,7 @@
     {
       "name": "antigravity",
       "description": "Orquesta Google Antigravity CLI (agy) y Codex como sub-agentes ejecutores dentro de Claude Code",
-      "version": "1.6.0",
+      "version": "1.7.0",
       "category": "development",
       "source": "./",
       "author": {

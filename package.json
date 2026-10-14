@@ -1,6 +1,6 @@
 {
   "name": "antigravity-cc",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Orchestrates Google Antigravity CLI (agy) and Codex as sub-agents within Claude Code for dual-agent collaboration",
   "type": "module",
   "main": "./bin/agy-wrapper.mjs",

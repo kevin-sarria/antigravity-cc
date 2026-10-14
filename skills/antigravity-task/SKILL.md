@@ -16,7 +16,7 @@ Guarda la especificación con la herramienta **Write** en un archivo `.md` fuera
 node "${CLAUDE_PLUGIN_ROOT}/bin/agy-wrapper.mjs" task --file "<ruta del archivo>"
 ```
 
-Antigravity edita archivos (`--mode accept-edits`). Por defecto no ejecuta comandos de shell, así que las pruebas las corres tú en la Fase 3.
+Antigravity edita archivos (`--mode accept-edits`). Si quiere ejecutar un comando de shell, se detiene con `DENIED_COMMAND`: pregunta al usuario y continúa según el skill antigravity-result-handling. Con acceso total (`/antigravity:permissions total`) ejecuta comandos sin preguntar. En cualquier caso, las pruebas las verificas tú en la Fase 3.
 
 ## Fase 3: Auditoría (Claude)
 1. `git status` y `git diff`: revisa los cambios reales en disco; no confíes solo en el resumen.
@@ -26,4 +26,4 @@ Antigravity edita archivos (`--mode accept-edits`). Por defecto no ejecuta coman
 ## Fase 4: Entrega
 Informa: qué se implementó, archivos tocados, qué corregiste sobre lo de Antigravity y el estado real de las pruebas (con la salida si fallan).
 
-Si el wrapper falla, muestra su diagnóstico y detente.
+Si el wrapper falla por otro motivo, muestra su diagnóstico y detente.

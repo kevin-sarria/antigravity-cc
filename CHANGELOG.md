@@ -11,6 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-14
+
+### Added
+- **Ask before running commands.** By default `delegate`/`task` edit files freely and, when Antigravity needs a
+  shell command, it stops with `DENIED_COMMAND` (naming the command and the conversation). Claude asks you and,
+  on a yes, continues the same conversation with permission. Antigravity is told to finish the file work first
+  and try commands last.
+- **`/antigravity:permissions total|preguntar`**: one command to give `delegate`/`task` full access to the
+  machine (commands without asking) or to go back to asking first. Saved in `~/.antigravity-cc/config.json`;
+  `/antigravity:setup` shows the active mode.
+- **`--full-access`**: full access for a single run.
+
+### Fixed
+- With the drive letter in lowercase (`c:\...`, as VS Code passes it) and a project folder that is not a git
+  repository, `agy` treated every file as outside the workspace and denied all edits
+  (`DENIED ... ReplaceFileContent`) even in accept-edits mode. The workspace path is now normalized to `C:\`.
+- `DENIED` errors no longer suggest `AGY_APPROVAL_MODE=yolo` for problems that full access does not solve
+  (files outside the project).
+
 ## [1.6.0] - 2026-10-12
 
 ### Added
@@ -145,7 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: `/antigravity:task`, `review`, `delegate`, `challenge`, `status` and `test`
   commands, matching skills, Claude Code marketplace manifest and security audit tests.
 
-[Unreleased]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.2...v1.6.0
 [1.5.2]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/kevin-sarria/antigravity-plugin-cc/compare/v1.5.0...v1.5.1

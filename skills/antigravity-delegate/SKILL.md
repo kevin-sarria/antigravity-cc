@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Antigravity Delegate
 
-Antigravity trabaja sobre el disco en un subproceso aislado y devuelve solo un resumen ("Context Shielding"). Por defecto puede editar archivos pero NO ejecutar comandos de shell (`--mode accept-edits`); con `AGY_APPROVAL_MODE=yolo` también puede ejecutar comandos.
+Antigravity trabaja sobre el disco en un subproceso aislado y devuelve solo un resumen ("Context Shielding"). Por defecto puede editar archivos, pero antes de ejecutar un comando de shell se detiene con `DENIED_COMMAND` y hay que preguntar al usuario (ver el skill antigravity-result-handling). Con `--full-access` (una vez) o `/antigravity:permissions total` (siempre) ejecuta comandos sin preguntar.
 
 ## Cómo se ejecuta
 Usa la herramienta Bash con `timeout: 600000`:
